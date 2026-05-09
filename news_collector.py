@@ -1,7 +1,12 @@
 import requests
 import pandas as pd
 
-API_KEY = "67faaf07c85645cb9a11f22261f82187"
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("NEWS_API_KEY")
 
 def get_news(company_name):
     url = f"https://newsapi.org/v2/everything?q={company_name}&language=en&sortBy=publishedAt&apiKey={API_KEY}"
