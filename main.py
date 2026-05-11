@@ -5,6 +5,7 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent as create_agent
 import yfinance as yf
 import requests
+from stock_brain import analyze_news_sentiment, calculate_technical_indicators
 
 load_dotenv()
 
@@ -17,25 +18,30 @@ llm = ChatGroq(
     temperature=0
 )
 
-
 @tool
 def find_ticker(company_name: str) -> str:
     """Find the stock ticker symbol for any company name like Apple, Samsung, Oracle, BMW"""
+    korean_companies = {
+        "samsung": "005930.KS",
+        "hyundai": "005380.KS",
+        "lg": "066570.KS",
+        "sk": "034730.KS",
+        "lotte": "004990.KS"
+    }
+    for name, ticker in korean_companies.items():
+        if name in company_name.lower():
+            return f"Ticker for {company_name}: {ticker}"
     search = yf.Search(company_name)
     results = search.quotes
     if not results:
         return f"No ticker found for {company_name}"
-
-    # Try each result until we find one with actual data
     for result in results[:5]:
         ticker = result['symbol']
         stock = yf.Ticker(ticker)
         df = stock.history(period="5d")
         if not df.empty:
             return f"Ticker for {company_name}: {ticker} ({result.get('shortname', '')})"
-
-    return f"No live stock data found for {company_name} — it may be a private company or delisted"
-
+    return f"No live stock data found for {company_name}"
 
 @tool
 def get_stock_price(ticker: str) -> str:
@@ -46,7 +52,6 @@ def get_stock_price(ticker: str) -> str:
         return f"No public stock data available for {ticker}."
     latest = df.iloc[-1]
     return f"{ticker} - Latest Close: ${latest['Close']:.2f}, Volume: {latest['Volume']}"
-
 
 @tool
 def get_stock_history(ticker: str, period: str) -> str:
@@ -60,7 +65,6 @@ def get_stock_history(ticker: str, period: str) -> str:
     change = ((last['Close'] - first['Close']) / first['Close']) * 100
     return f"{ticker} over {period}: Start ${first['Close']:.2f} → End ${last['Close']:.2f} | Change: {change:.2f}%"
 
-
 @tool
 def get_company_news(company: str) -> str:
     """Get latest news articles for a company by name like Apple or Tesla"""
@@ -70,8 +74,22 @@ def get_company_news(company: str) -> str:
     news = "\n".join([f"- {a['title']}" for a in articles])
     return news if news else "No news found"
 
+@tool
+def analyze_sentiment(news_text: str) -> str:
+    """Analyze sentiment of news text using FinBERT - returns positive, negative or neutral"""
+    news_list = [line.strip('- ') for line in news_text.split('\n') if line.strip()]
+    result = analyze_news_sentiment(news_list)
+    return f"Overall sentiment: {result['overall_sentiment']} | Positive: {result['positive_count']} | Negative: {result['negative_count']} | Neutral: {result['neutral_count']}"
 
-tools = [find_ticker, get_stock_price, get_stock_history, get_company_news]
+@tool
+def get_technical_analysis(ticker: str) -> str:
+    """Get technical indicators RSI, EMA, MACD, Bollinger Bands for a stock"""
+    result = calculate_technical_indicators(ticker)
+    if "error" in result:
+        return result["error"]
+    return f"RSI: {result['RSI']} ({result['RSI_signal']}) | EMA: {result['EMA_trend']} | MACD: {result['MACD_signal']} | BB: {result['BB_signal']}"
+
+tools = [find_ticker, get_stock_price, get_stock_history, get_company_news, analyze_sentiment, get_technical_analysis]
 
 system_prompt = """You are a stock market analysis AI assistant.
 You MUST always call the tools to get real data. Never make up or assume data.
@@ -79,8 +97,10 @@ Follow these steps for EVERY question:
 1. Call find_ticker to get the ticker symbol
 2. Call get_stock_price with that ticker
 3. Call get_company_news with the company name
-4. Give a clear buy/sell/hold recommendation based on the real data you got
-You ONLY use these tools: find_ticker, get_stock_price, get_stock_history, get_company_news.
+4. Call analyze_sentiment on the news
+5. Call get_technical_analysis with the ticker
+6. Give a clear buy/sell/hold recommendation based on ALL the data
+You ONLY use these tools: find_ticker, get_stock_price, get_stock_history, get_company_news, analyze_sentiment, get_technical_analysis.
 Do NOT use brave_search or any other tool."""
 
 agent = create_agent(llm, tools, prompt=system_prompt)
