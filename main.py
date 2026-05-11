@@ -1,4 +1,6 @@
 import os
+
+import agent
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_core.tools import tool
@@ -41,7 +43,9 @@ tools = [get_stock_price, get_company_news]
 agent = create_agent(llm, tools)
 
 response = agent.invoke({
-    "messages": [{"role": "user", "content": "Analyze Apple stock - get the current price, latest news and tell me if it looks good or bad to invest today?"}]
+response = agent.invoke({
+    "messages": [{"role": "user", "content": "Analyze Samsung stock - get the current price, latest news and tell me if it looks good or bad to invest today?"}]
+})
 })
 
 print(response['messages'][-1].content)
