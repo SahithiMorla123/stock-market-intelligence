@@ -6,6 +6,7 @@ from langgraph.prebuilt import create_react_agent as create_agent
 import yfinance as yf
 import requests
 from stock_brain import analyze_news_sentiment, calculate_technical_indicators
+from future_vision import predict_future
 
 load_dotenv()
 
@@ -89,7 +90,17 @@ def get_technical_analysis(ticker: str) -> str:
         return result["error"]
     return f"RSI: {result['RSI']} ({result['RSI_signal']}) | EMA: {result['EMA_trend']} | MACD: {result['MACD_signal']} | BB: {result['BB_signal']}"
 
-tools = [find_ticker, get_stock_price, get_stock_history, get_company_news, analyze_sentiment, get_technical_analysis]
+@tool
+def predict_stock_price(ticker: str) -> str:
+    """Predict stock price for next 7 days using BiLSTM + Attention model"""
+    print(f"Training BiLSTM model for {ticker}... please wait...")
+    result = predict_future(ticker, days=7)
+    if "error" in result:
+        return result["error"]
+    predictions = "\n".join([f"{day}: {price}" for day, price in result['predictions'].items()])
+    return f"Current Price: ${result['current_price']}\n7-Day Prediction:\n{predictions}"
+
+tools = [find_ticker, get_stock_price, get_stock_history, get_company_news, analyze_sentiment, get_technical_analysis, predict_stock_price]
 
 system_prompt = """You are a stock market analysis AI assistant.
 You MUST always call the tools to get real data. Never make up or assume data.
@@ -99,8 +110,9 @@ Follow these steps for EVERY question:
 3. Call get_company_news with the company name
 4. Call analyze_sentiment on the news
 5. Call get_technical_analysis with the ticker
-6. Give a clear buy/sell/hold recommendation based on ALL the data
-You ONLY use these tools: find_ticker, get_stock_price, get_stock_history, get_company_news, analyze_sentiment, get_technical_analysis.
+6. If user asks about future/prediction call predict_stock_price with the ticker
+7. Give a clear buy/sell/hold recommendation based on ALL the data
+You ONLY use these tools: find_ticker, get_stock_price, get_stock_history, get_company_news, analyze_sentiment, get_technical_analysis, predict_stock_price.
 Do NOT use brave_search or any other tool."""
 
 agent = create_agent(llm, tools, prompt=system_prompt)
