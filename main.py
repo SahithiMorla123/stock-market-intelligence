@@ -7,6 +7,7 @@ import yfinance as yf
 import requests
 from stock_brain import analyze_news_sentiment, calculate_technical_indicators
 from future_vision import predict_future
+from stock_memory import query_stock_memory
 
 load_dotenv()
 
@@ -84,11 +85,11 @@ def analyze_sentiment(news_text: str) -> str:
 
 @tool
 def get_technical_analysis(ticker: str) -> str:
-    """Get technical indicators RSI, EMA, MACD, Bollinger Bands for a stock"""
+    """Get technical indicators RSI, EMA, MACD for a stock"""
     result = calculate_technical_indicators(ticker)
     if "error" in result:
         return result["error"]
-    return f"RSI: {result['RSI']} ({result['RSI_signal']}) | EMA: {result['EMA_trend']} | MACD: {result['MACD_signal']} | BB: {result['BB_signal']}"
+    return f"RSI: {result['RSI']} ({result['RSI_signal']}) | EMA: {result['EMA_trend']} | MACD: {result['MACD_signal']}"
 
 @tool
 def predict_stock_price(ticker: str) -> str:
@@ -100,19 +101,49 @@ def predict_stock_price(ticker: str) -> str:
     predictions = "\n".join([f"{day}: {price}" for day, price in result['predictions'].items()])
     return f"Current Price: ${result['current_price']}\n7-Day Prediction:\n{predictions}"
 
-tools = [find_ticker, get_stock_price, get_stock_history, get_company_news, analyze_sentiment, get_technical_analysis, predict_stock_price]
+@tool
+def search_stock_memory(ticker: str, company: str, query: str) -> str:
+    """Search ChromaDB RAG for historical stock data and news for any company worldwide"""
+    return query_stock_memory(ticker, company, query)
 
-system_prompt = """You are a stock market analysis AI assistant.
-You MUST always call the tools to get real data. Never make up or assume data.
-Follow these steps for EVERY question:
+tools = [find_ticker, get_stock_price, get_stock_history, get_company_news, analyze_sentiment, get_technical_analysis, predict_stock_price, search_stock_memory]
+
+system_prompt = """You are a professional stock market analysis AI assistant.
+You MUST always call ALL tools and give a detailed explanation.
+
+For EVERY question follow these steps:
 1. Call find_ticker to get the ticker symbol
 2. Call get_stock_price with that ticker
 3. Call get_company_news with the company name
 4. Call analyze_sentiment on the news
 5. Call get_technical_analysis with the ticker
-6. If user asks about future/prediction call predict_stock_price with the ticker
-7. Give a clear buy/sell/hold recommendation based on ALL the data
-You ONLY use these tools: find_ticker, get_stock_price, get_stock_history, get_company_news, analyze_sentiment, get_technical_analysis, predict_stock_price.
+6. Call search_stock_memory for historical context
+7. If user asks about future, call predict_stock_price
+
+Then give answer in this format:
+
+📊 CURRENT PRICE: [price]
+
+📈 TECHNICAL ANALYSIS:
+- RSI: [value] → [what it means for investor]
+- EMA: [trend] → [what it means]
+- MACD: [signal] → [what it means]
+
+📰 NEWS SENTIMENT: [positive/negative/neutral]
+- Why: [explain based on news]
+
+🏛️ HISTORICAL CONTEXT:
+- [what the historical data shows]
+
+🔮 PREDICTION CONFIDENCE: [X%]
+- Based on: sentiment + technical indicators + historical patterns
+
+✅ RECOMMENDATION: BUY / HOLD / SELL
+- Reason 1: [RSI/EMA/MACD signal]
+- Reason 2: [news sentiment impact]
+- Reason 3: [historical trend]
+
+You ONLY use these tools: find_ticker, get_stock_price, get_stock_history, get_company_news, analyze_sentiment, get_technical_analysis, predict_stock_price, search_stock_memory.
 Do NOT use brave_search or any other tool."""
 
 agent = create_agent(llm, tools, prompt=system_prompt)
