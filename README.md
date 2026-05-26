@@ -1,3 +1,6 @@
+Here's the updated README with only the additions you asked for:
+
+```markdown
 # 📈 Stock Market Intelligence System
 
 An AI-powered stock market analysis system that collects, processes and analyses real-time stock market data and news for any Multinational Company (MNC) worldwide — built using Python, Agentic AI, LangGraph, FinBERT, ChromaDB, RAG and Streamlit.
@@ -17,6 +20,7 @@ An AI-powered stock market analysis system that collects, processes and analyses
 
 ### Remaining
 - Streamlit Dashboard — `dashboard.py` (in progress)
+- API Testing — Postman (in progress)
 
 ---
 
@@ -168,6 +172,31 @@ An AI-powered stock market analysis system that collects, processes and analyses
 
 ---
 
+## Remaining — API Testing — Postman
+
+- All backend endpoints exposed as REST API using FastAPI — `api.py`
+- Each endpoint tested individually using Postman for reliability and accuracy
+- Ensures every tool in the Agentic AI pipeline returns correct responses before connecting to frontend
+
+### API Endpoints
+
+| Endpoint | Method | What It Tests |
+|----------|--------|---------------|
+| `/price` | POST | Returns live stock price for any MNC worldwide |
+| `/news` | POST | Returns latest news articles for any company |
+| `/sentiment` | POST | Returns FinBERT sentiment score for news text |
+| `/technical` | POST | Returns RSI, EMA, MACD, Bollinger Bands for any ticker |
+| `/predict` | POST | Returns 7-day BiLSTM price prediction for any MNC |
+| `/analyze` | POST | Returns full Agentic AI analysis — price, sentiment, technical, recommendation |
+
+| Tool | Purpose |
+|------|---------|
+| FastAPI | Expose all backend functions as REST API endpoints |
+| Uvicorn | Serve the FastAPI application locally |
+| Postman | Send HTTP requests to each endpoint and verify responses |
+
+---
+
 ## Tech Stack
 
 | Area | Tools |
@@ -178,12 +207,15 @@ An AI-powered stock market analysis system that collects, processes and analyses
 | Technical Analysis | RSI, EMA 20/50, MACD, Bollinger Bands (Pandas + yfinance) |
 | Agentic AI | LangGraph, LangChain, LLaMA 3.3 70B via Groq |
 | Vector Database + RAG | ChromaDB, LangChain Embeddings |
+| REST API | FastAPI, Uvicorn |
+| API Testing | Postman |
 | Visualization | Streamlit, Plotly |
 | LLM Inference | Groq API |
 
 ---
 
 ## Project Structure
+```
 stock-market-intelligence/
 │
 ├── data_collector.py      — Fetches 10 years of stock market data for MNCs
@@ -192,15 +224,17 @@ stock-market-intelligence/
 ├── raw_data_loader.py     — Loads and validates Kaggle stock dataset
 ├── stock_brain.py         — FinBERT sentiment + technical indicators
 ├── main.py                — Agentic AI pipeline (LangGraph + LLaMA + RAG)
+├── api.py                 — FastAPI REST API endpoints
 ├── dashboard.py           — Streamlit interactive dashboard (in progress)
 ├── all_stocks_data.csv    — Raw combined stock dataset
 ├── clean_stocks_data.csv  — Cleaned stock dataset
 └── .env                   — API keys (GROQ_API_KEY, NEWS_API_KEY)
+```
 
-
+---
 
 ## Author
 
 Sahithi Morla
 - GitHub: https://github.com/SahithiMorla123
-- Email: morlasaisahithi2031@gmail.comSonnet 4.6
+- Email: morlasaisahithi2031@gmail.com
