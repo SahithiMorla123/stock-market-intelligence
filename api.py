@@ -32,6 +32,7 @@ class StockRequest(BaseModel):
 
 class NewsRequest(BaseModel):
     company: str
+    ticker: str = ""
     page_size: int = 5
 
 class SentimentRequest(BaseModel):
@@ -73,8 +74,12 @@ def calculate_macd(prices):
     return round(macd.iloc[-1], 4), round(signal.iloc[-1], 4)
 
 def simple_sentiment(text: str):
-    positive_words = ['surge', 'gain', 'profit', 'growth', 'record', 'beat', 'strong', 'rise', 'up', 'high', 'launch', 'success', 'bullish']
-    negative_words = ['fall', 'drop', 'loss', 'decline', 'miss', 'weak', 'down', 'low', 'cut', 'layoff', 'lawsuit', 'crash', 'bearish']
+    positive_words = ['surge', 'gain', 'profit', 'growth', 'record', 'beat', 'strong',
+                      'rise', 'up', 'high', 'launch', 'success', 'bullish', 'buy',
+                      'rally', 'outperform', 'upgrade', 'boost', 'expand', 'revenue']
+    negative_words = ['fall', 'drop', 'loss', 'decline', 'miss', 'weak', 'down', 'low',
+                      'cut', 'layoff', 'lawsuit', 'crash', 'bearish', 'sell', 'downgrade',
+                      'risk', 'concern', 'warn', 'debt', 'short']
     text_lower = text.lower()
     pos = sum(1 for w in positive_words if w in text_lower)
     neg = sum(1 for w in negative_words if w in text_lower)
@@ -84,6 +89,52 @@ def simple_sentiment(text: str):
         return {"sentiment": "Negative", "score": round(neg / (pos + neg + 1), 2)}
     else:
         return {"sentiment": "Neutral", "score": 0.5}
+
+def fetch_news(company: str, ticker: str = "", page_size: int = 5):
+    """Fetch company-specific news from NewsAPI"""
+    # Build a focused query using company name + stock keywords
+    if ticker:
+        query = f'"{company}" AND (stock OR shares OR earnings OR revenue OR CEO OR quarterly)'
+    else:
+        query = f'"{company}" stock OR shares OR earnings'
+
+    url = (
+        f"https://newsapi.org/v2/everything"
+        f"?q={requests.utils.quote(query)}"
+        f"&language=en"
+        f"&sortBy=publishedAt"
+        f"&pageSize={page_size}"
+        f"&apiKey={NEWS_API_KEY}"
+    )
+    response = requests.get(url)
+    articles = response.json().get('articles', [])
+
+    news_list = []
+    for article in articles:
+        title = article.get('title', '') or ''
+        description = article.get('description', '') or ''
+        # Filter out articles that don't mention company name at all
+        if company.lower() in title.lower() or company.lower() in description.lower():
+            news_list.append({
+                "title": title,
+                "description": description,
+                "published": (article.get('publishedAt', '') or '')[:10],
+                "source": article.get('source', {}).get('name', ''),
+                "url": article.get('url', '')
+            })
+
+    # If filtering was too strict and returned nothing, return unfiltered
+    if not news_list:
+        for article in articles:
+            news_list.append({
+                "title": article.get('title', ''),
+                "description": article.get('description', ''),
+                "published": (article.get('publishedAt', '') or '')[:10],
+                "source": article.get('source', {}).get('name', ''),
+                "url": article.get('url', '')
+            })
+
+    return news_list
 
 # ── ENDPOINTS ─────────────────────────────────────────────────────────────────
 
@@ -124,24 +175,12 @@ def get_price(request: StockRequest):
 
 @app.post("/news")
 def get_news(request: NewsRequest):
-    """Get latest news articles for a company"""
+    """Get latest relevant news articles for a company"""
     try:
-        url = f"https://newsapi.org/v2/everything?q={request.company}&language=en&sortBy=publishedAt&pageSize={request.page_size}&apiKey={NEWS_API_KEY}"
-        response = requests.get(url)
-        articles = response.json().get('articles', [])
-
-        news_list = []
-        for article in articles:
-            news_list.append({
-                "title": article.get('title', ''),
-                "description": article.get('description', ''),
-                "published": article.get('publishedAt', '')[:10],
-                "source": article.get('source', {}).get('name', ''),
-                "url": article.get('url', '')
-            })
-
+        news_list = fetch_news(request.company, request.ticker, request.page_size)
         return {
             "company": request.company,
+            "ticker": request.ticker.upper() if request.ticker else "",
             "total_articles": len(news_list),
             "articles": news_list
         }
@@ -150,12 +189,13 @@ def get_news(request: NewsRequest):
 
 @app.post("/sentiment")
 def analyze_sentiment(request: SentimentRequest):
-    """Analyze sentiment of a text"""
+    """Analyze sentiment of a text using keyword analysis"""
     result = simple_sentiment(request.text)
     return {
         "text": request.text[:100],
         "sentiment": result["sentiment"],
-        "confidence_score": result["score"]
+        "confidence_score": result["score"],
+        "note": "Sentiment scored using financial keyword analysis"
     }
 
 @app.post("/technical")
@@ -255,20 +295,19 @@ def full_analysis(request: AnalyzeRequest):
         week_ago = df.iloc[-5] if len(df) >= 5 else df.iloc[0]
         price_change_pct = ((latest['Close'] - week_ago['Close']) / week_ago['Close']) * 100
 
-        news_url = f"https://newsapi.org/v2/everything?q={request.company}&language=en&sortBy=publishedAt&pageSize=5&apiKey={NEWS_API_KEY}"
-        news_response = requests.get(news_url)
-        articles = news_response.json().get('articles', [])
-        news_summary = "\n".join([f"- {a['title']}" for a in articles[:5]])
+        # Use improved fetch_news helper
+        articles_raw = fetch_news(request.company, request.ticker, 5)
+        news_summary = "\n".join([f"- {a['title']}" for a in articles_raw[:5]])
 
         rsi = calculate_rsi(df['Close'])
         macd, signal = calculate_macd(df['Close'])
 
         messages = [
-            SystemMessage(content="""You are a senior financial analyst AI. 
-            Analyze the stock data and news provided.
-            Give a clear BUY, HOLD, or SELL recommendation.
-            Always cite your sources from the news provided.
-            Keep your analysis concise but insightful."""),
+            SystemMessage(content="""You are a senior financial analyst AI.
+Analyze the stock data and news provided.
+Give a clear BUY, HOLD, or SELL recommendation.
+Always cite your sources from the news provided.
+Keep your analysis concise but insightful."""),
             HumanMessage(content=f"""
 Company: {request.company} ({request.ticker})
 Current Price: ${latest['Close']:.2f}
@@ -298,7 +337,7 @@ Provide a BUY/HOLD/SELL recommendation with reasoning.
             },
             "recommendation": recommendation,
             "ai_analysis": ai_response.content,
-            "news_used": [a['title'] for a in articles[:3]]
+            "news_used": [a['title'] for a in articles_raw[:3]]
         }
     except HTTPException:
         raise
