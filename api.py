@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
@@ -14,6 +15,13 @@ app = FastAPI(
     title="Stock Market Intelligence API",
     description="AI-powered stock analysis using LLaMA 3.1, RAG and real-time data",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -25,7 +33,7 @@ llm = ChatGroq(
     temperature=0
 )
 
-# ── REQUEST MODELS ────────────────────────────────────────────────────────────
+# ── REQUEST MODELS ─────────────────────────────────────────────────────────
 class StockRequest(BaseModel):
     ticker: str
     period: str = "1mo"
@@ -50,7 +58,7 @@ class TechnicalRequest(BaseModel):
     ticker: str
     period: str = "3mo"
 
-# ── HELPER FUNCTIONS ──────────────────────────────────────────────────────────
+# ── HELPER FUNCTIONS ───────────────────────────────────────────────────────
 def get_stock_df(ticker: str, period: str = "1mo"):
     stock = yf.Ticker(ticker)
     df = stock.history(period=period)
@@ -91,8 +99,6 @@ def simple_sentiment(text: str):
         return {"sentiment": "Neutral", "score": 0.5}
 
 def fetch_news(company: str, ticker: str = "", page_size: int = 5):
-    """Fetch company-specific news from NewsAPI"""
-    # Build a focused query using company name + stock keywords
     if ticker:
         query = f'"{company}" AND (stock OR shares OR earnings OR revenue OR CEO OR quarterly)'
     else:
@@ -113,7 +119,6 @@ def fetch_news(company: str, ticker: str = "", page_size: int = 5):
     for article in articles:
         title = article.get('title', '') or ''
         description = article.get('description', '') or ''
-        # Filter out articles that don't mention company name at all
         if company.lower() in title.lower() or company.lower() in description.lower():
             news_list.append({
                 "title": title,
@@ -123,7 +128,6 @@ def fetch_news(company: str, ticker: str = "", page_size: int = 5):
                 "url": article.get('url', '')
             })
 
-    # If filtering was too strict and returned nothing, return unfiltered
     if not news_list:
         for article in articles:
             news_list.append({
@@ -136,26 +140,43 @@ def fetch_news(company: str, ticker: str = "", page_size: int = 5):
 
     return news_list
 
-# ── ENDPOINTS ─────────────────────────────────────────────────────────────────
+# ── ENDPOINTS ──────────────────────────────────────────────────────────────
 
 @app.get("/")
 def root():
     return {
         "message": "Stock Market Intelligence API",
         "version": "1.0.0",
-        "endpoints": ["/price", "/news", "/sentiment", "/technical", "/predict", "/analyze"]
+        "endpoints": ["/price", "/news", "/sentiment", "/technical", "/predict", "/analyze", "/search"]
     }
+
+@app.get("/search")
+def search_company(q: str):
+    """Search for any company ticker by name — works for any company worldwide"""
+    try:
+        search = yf.Search(q, max_results=5)
+        quotes = search.quotes
+        if quotes:
+            # Filter for equity type results first
+            equity = [x for x in quotes if x.get('quoteType') == 'EQUITY']
+            best = equity[0] if equity else quotes[0]
+            symbol  = best['symbol']
+            name    = best.get('longname') or best.get('shortname') or q
+            return {"ticker": symbol, "company": name, "found": True}
+        raise HTTPException(status_code=404, detail=f"Company '{q}' not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/price")
 def get_price(request: StockRequest):
-    """Get current stock price and recent data"""
     try:
         df = get_stock_df(request.ticker, request.period)
         latest = df.iloc[-1]
         prev = df.iloc[-2] if len(df) > 1 else latest
         price_change = latest['Close'] - prev['Close']
         price_change_pct = (price_change / prev['Close']) * 100
-
         return {
             "ticker": request.ticker.upper(),
             "current_price": round(float(latest['Close']), 2),
@@ -175,7 +196,6 @@ def get_price(request: StockRequest):
 
 @app.post("/news")
 def get_news(request: NewsRequest):
-    """Get latest relevant news articles for a company"""
     try:
         news_list = fetch_news(request.company, request.ticker, request.page_size)
         return {
@@ -189,7 +209,6 @@ def get_news(request: NewsRequest):
 
 @app.post("/sentiment")
 def analyze_sentiment(request: SentimentRequest):
-    """Analyze sentiment of a text using keyword analysis"""
     result = simple_sentiment(request.text)
     return {
         "text": request.text[:100],
@@ -200,11 +219,9 @@ def analyze_sentiment(request: SentimentRequest):
 
 @app.post("/technical")
 def get_technical_indicators(request: TechnicalRequest):
-    """Get technical indicators — RSI, EMA, MACD"""
     try:
         df = get_stock_df(request.ticker, request.period)
         prices = df['Close']
-
         rsi = calculate_rsi(prices)
         macd, signal = calculate_macd(prices)
         ema20 = round(float(prices.ewm(span=20).mean().iloc[-1]), 2)
@@ -219,25 +236,14 @@ def get_technical_indicators(request: TechnicalRequest):
             rsi_signal = "Neutral"
 
         macd_signal = "Bullish" if macd > signal else "Bearish"
-        ema_signal = "Bullish" if ema20 > ema50 else "Bearish"
+        ema_signal  = "Bullish" if ema20 > ema50 else "Bearish"
 
         return {
             "ticker": request.ticker.upper(),
             "current_price": current_price,
-            "RSI": {
-                "value": rsi,
-                "signal": rsi_signal
-            },
-            "MACD": {
-                "macd": macd,
-                "signal_line": signal,
-                "trend": macd_signal
-            },
-            "EMA": {
-                "ema_20": ema20,
-                "ema_50": ema50,
-                "trend": ema_signal
-            }
+            "RSI":  {"value": rsi,  "signal": rsi_signal},
+            "MACD": {"macd": macd,  "signal_line": signal, "trend": macd_signal},
+            "EMA":  {"ema_20": ema20, "ema_50": ema50, "trend": ema_signal}
         }
     except HTTPException:
         raise
@@ -246,26 +252,20 @@ def get_technical_indicators(request: TechnicalRequest):
 
 @app.post("/predict")
 def predict_price(request: PredictRequest):
-    """Predict next 7 days price trend based on historical data"""
     try:
         df = get_stock_df(request.ticker, "3mo")
         prices = df['Close']
-
         ema20 = prices.ewm(span=20).mean().iloc[-1]
         ema50 = prices.ewm(span=50).mean().iloc[-1]
-        rsi = calculate_rsi(prices)
-        current_price = float(prices.iloc[-1])
-
-        avg_daily_change = float(prices.pct_change().mean())
+        rsi   = calculate_rsi(prices)
+        current_price     = float(prices.iloc[-1])
+        avg_daily_change  = float(prices.pct_change().mean())
 
         predictions = []
         price = current_price
         for i in range(1, 8):
             price = price * (1 + avg_daily_change)
-            predictions.append({
-                "day": f"Day {i}",
-                "predicted_price": round(price, 2)
-            })
+            predictions.append({"day": f"Day {i}", "predicted_price": round(price, 2)})
 
         if ema20 > ema50 and rsi < 70:
             trend = "Bullish — upward trend expected"
@@ -288,18 +288,16 @@ def predict_price(request: PredictRequest):
 
 @app.post("/analyze")
 def full_analysis(request: AnalyzeRequest):
-    """Full AI-powered stock analysis with BUY/HOLD/SELL recommendation"""
     try:
         df = get_stock_df(request.ticker, request.period)
-        latest = df.iloc[-1]
+        latest   = df.iloc[-1]
         week_ago = df.iloc[-5] if len(df) >= 5 else df.iloc[0]
         price_change_pct = ((latest['Close'] - week_ago['Close']) / week_ago['Close']) * 100
 
-        # Use improved fetch_news helper
         articles_raw = fetch_news(request.company, request.ticker, 5)
         news_summary = "\n".join([f"- {a['title']}" for a in articles_raw[:5]])
 
-        rsi = calculate_rsi(df['Close'])
+        rsi  = calculate_rsi(df['Close'])
         macd, signal = calculate_macd(df['Close'])
 
         messages = [
@@ -322,7 +320,7 @@ Provide a BUY/HOLD/SELL recommendation with reasoning.
 """)
         ]
 
-        ai_response = llm.invoke(messages)
+        ai_response    = llm.invoke(messages)
         recommendation = "BUY" if "BUY" in ai_response.content.upper() else "SELL" if "SELL" in ai_response.content.upper() else "HOLD"
 
         return {
@@ -330,11 +328,7 @@ Provide a BUY/HOLD/SELL recommendation with reasoning.
             "company": request.company,
             "current_price": round(float(latest['Close']), 2),
             "weekly_change_pct": round(float(price_change_pct), 2),
-            "technical_indicators": {
-                "RSI": rsi,
-                "MACD": macd,
-                "signal_line": signal
-            },
+            "technical_indicators": {"RSI": rsi, "MACD": macd, "signal_line": signal},
             "recommendation": recommendation,
             "ai_analysis": ai_response.content,
             "news_used": [a['title'] for a in articles_raw[:3]]

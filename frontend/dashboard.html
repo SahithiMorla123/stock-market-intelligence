@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StockVision AI — Dashboard</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet"/>
+</head>
+<body class="dashboard-body">
+
+  <div class="bg-grid"></div>
+  <div class="bg-glow glow-1"></div>
+  <div class="bg-glow glow-2"></div>
+
+  <nav class="dash-nav">
+    <div class="nav-logo">
+      <span class="logo-icon">⬡</span>
+      <span class="logo-text">StockVision <span class="logo-accent">AI</span></span>
+    </div>
+    <div class="nav-center">
+      <div class="search-wrapper">
+        <input type="text" id="globalSearch" placeholder=" " autocomplete="off"/>
+        <label class="floating-label">Enter company name (Apple, Nestle, Samsung...)</label>
+        <button class="search-btn" onclick="searchStock()">ANALYZE</button>
+      </div>
+    </div>
+    <div class="nav-right">
+      <div class="status-dot"></div>
+      <span class="status-text">LIVE</span>
+      <a href="index.html" class="back-btn">← Home</a>
+    </div>
+  </nav>
+
+  <div class="dash-layout">
+
+    <!-- LEFT: Chatbot -->
+    <aside class="left-panel glass-panel fade-in-left">
+      <div class="panel-header">
+        <span class="panel-icon">🧠</span>
+        <span class="panel-title">AI Assistant</span>
+        <span class="panel-badge">GROQ</span>
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-msg bot-msg">
+          <div class="msg-avatar">⬡</div>
+          <div class="msg-bubble">Hello! Type any company name like Apple, Tesla, Nestle or Samsung. I'll analyze it for you!</div>
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <div class="float-input-wrap">
+          <input type="text" id="chatInput" placeholder=" " onkeydown="if(event.key==='Enter') sendChat()"/>
+          <label class="floating-label">Ask AI Assistant...</label>
+        </div>
+        <button class="send-btn" onclick="sendChat()">▶</button>
+      </div>
+      <div class="quick-prompts">
+        <button class="prompt-chip" onclick="quickPrompt('Analyze Apple stock')">Analyze Apple</button>
+        <button class="prompt-chip" onclick="quickPrompt('Should I buy Tesla?')">Buy Tesla?</button>
+        <button class="prompt-chip" onclick="quickPrompt('Nvidia prediction')">Nvidia predict</button>
+        <button class="prompt-chip" onclick="quickPrompt('Nestle stock price')">Nestle price</button>
+      </div>
+    </aside>
+
+    <!-- CENTER: Stock Data -->
+    <main class="center-panel">
+      <div class="stocks-row" id="stocksRow">
+        <div class="stock-card glass-card tilt-card" data-ticker="AAPL" onclick="loadStock('AAPL','Apple')">
+          <div class="stock-card-top"><span class="stock-name">AAPL</span><span class="stock-company">Apple Inc.</span></div>
+          <div class="stock-price" id="price-AAPL">—</div>
+          <div class="stock-change" id="change-AAPL">Loading...</div>
+          <div class="stock-bar"><div class="stock-bar-fill" id="bar-AAPL"></div></div>
+        </div>
+        <div class="stock-card glass-card tilt-card" data-ticker="TSLA" onclick="loadStock('TSLA','Tesla')">
+          <div class="stock-card-top"><span class="stock-name">TSLA</span><span class="stock-company">Tesla Inc.</span></div>
+          <div class="stock-price" id="price-TSLA">—</div>
+          <div class="stock-change" id="change-TSLA">Loading...</div>
+          <div class="stock-bar"><div class="stock-bar-fill" id="bar-TSLA"></div></div>
+        </div>
+        <div class="stock-card glass-card tilt-card" data-ticker="GOOGL" onclick="loadStock('GOOGL','Google')">
+          <div class="stock-card-top"><span class="stock-name">GOOGL</span><span class="stock-company">Alphabet Inc.</span></div>
+          <div class="stock-price" id="price-GOOGL">—</div>
+          <div class="stock-change" id="change-GOOGL">Loading...</div>
+          <div class="stock-bar"><div class="stock-bar-fill" id="bar-GOOGL"></div></div>
+        </div>
+        <div class="stock-card glass-card tilt-card" data-ticker="NVDA" onclick="loadStock('NVDA','Nvidia')">
+          <div class="stock-card-top"><span class="stock-name">NVDA</span><span class="stock-company">NVIDIA Corp.</span></div>
+          <div class="stock-price" id="price-NVDA">—</div>
+          <div class="stock-change" id="change-NVDA">Loading...</div>
+          <div class="stock-bar"><div class="stock-bar-fill" id="bar-NVDA"></div></div>
+        </div>
+      </div>
+
+      <div class="analysis-area" id="analysisArea">
+        <div class="analysis-placeholder glass-card">
+          <div class="placeholder-icon">🔍</div>
+          <div class="placeholder-text">Type any company name above or click a stock card to begin analysis</div>
+        </div>
+      </div>
+
+      <div class="prediction-area glass-panel" id="predictionArea" style="display:none">
+        <div class="panel-header">
+          <span class="panel-icon">🔮</span>
+          <span class="panel-title">7-Day Price Prediction</span>
+          <span class="panel-badge" id="predTicker">—</span>
+        </div>
+        <div class="pred-chart" id="predChart"></div>
+      </div>
+    </main>
+
+    <!-- RIGHT: Insights -->
+    <aside class="right-panel glass-panel fade-in-right">
+      <div class="panel-header">
+        <span class="panel-icon">📊</span>
+        <span class="panel-title">Insights</span>
+      </div>
+      <div class="insight-block" id="technicalBlock">
+        <div class="insight-title">Technical Indicators</div>
+        <div class="insight-empty">Select a stock to view</div>
+      </div>
+      <div class="divider"></div>
+      <div class="insight-block" id="sentimentBlock">
+        <div class="insight-title">Market Sentiment</div>
+        <div class="insight-empty">—</div>
+      </div>
+      <div class="divider"></div>
+      <div class="insight-block" id="newsBlock">
+        <div class="insight-title">Latest News</div>
+        <div class="insight-empty">—</div>
+      </div>
+      <div class="divider"></div>
+      <div class="insight-block" id="aiSummaryBlock">
+        <div class="insight-title">AI Recommendation</div>
+        <div class="insight-empty">—</div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loader-ring"></div>
+    <div class="loader-text">Analyzing...</div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StockVision AI</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet"/>
+</head>
+<body class="landing-body">
+
+  <div class="bg-grid"></div>
+  <div class="bg-glow glow-1"></div>
+  <div class="bg-glow glow-2"></div>
+  <div class="bg-glow glow-3"></div>
+  <canvas id="particles"></canvas>
+
+  <div class="landing-wrapper">
+
+    <nav class="landing-nav fade-in-down">
+      <div class="nav-logo">
+        <span class="logo-icon">⬡</span>
+        <span class="logo-text">StockVision <span class="logo-accent">AI</span></span>
+      </div>
+      <div class="nav-tag">v2.0 LIVE</div>
+    </nav>
+
+    <div class="hero-section">
+      <div class="hero-badge fade-in" style="animation-delay:0.2s">
+        <span class="badge-dot"></span>
+        AI-POWERED · REAL-TIME · INTELLIGENT
+      </div>
+
+      <h1 class="hero-title fade-in" style="animation-delay:0.4s">
+        <span class="title-line-1">STOCK</span>
+        <span class="title-line-2">VISION <span class="title-glow">AI</span></span>
+      </h1>
+
+      <p class="hero-sub fade-in" style="animation-delay:0.6s">Future Trading Interface</p>
+
+      <p class="hero-desc fade-in" style="animation-delay:0.8s">
+        AI Stock Intelligence powered by LLaMA 3.1 · Real-time market data · Predictive analytics
+      </p>
+
+      <div class="feature-cards fade-in" style="animation-delay:1s">
+        <div class="feat-card glass-card"><div class="feat-icon">📈</div><div class="feat-label">Live Prices</div></div>
+        <div class="feat-card glass-card"><div class="feat-icon">🧠</div><div class="feat-label">AI Analysis</div></div>
+        <div class="feat-card glass-card"><div class="feat-icon">🔮</div><div class="feat-label">Predictions</div></div>
+        <div class="feat-card glass-card"><div class="feat-icon">📰</div><div class="feat-label">Live News</div></div>
+        <div class="feat-card glass-card"><div class="feat-icon">💬</div><div class="feat-label">AI Chatbot</div></div>
+      </div>
+
+      <div class="cta-wrapper fade-in" style="animation-delay:1.2s">
+        <button class="cta-btn" onclick="enterExperience()">
+          <span class="cta-text">Enter Experience</span>
+          <span class="cta-arrow">→</span>
+          <div class="cta-glow"></div>
+        </button>
+        <p class="cta-sub">Powered by FastAPI · LLaMA 3.1 · Real-time Data</p>
+      </div>
+    </div>
+
+    <div class="ticker-bar fade-in" style="animation-delay:1.4s">
+      <div class="ticker-track">
+        <span class="tick-item"><span class="tick-name">AAPL</span><span class="tick-price up">$311.80 ▲</span></span>
+        <span class="tick-item"><span class="tick-name">TSLA</span><span class="tick-price up">$441.41 ▲</span></span>
+        <span class="tick-item"><span class="tick-name">GOOGL</span><span class="tick-price down">$390.26 ▼</span></span>
+        <span class="tick-item"><span class="tick-name">MSFT</span><span class="tick-price up">$452.10 ▲</span></span>
+        <span class="tick-item"><span class="tick-name">NVDA</span><span class="tick-price down">$212.71 ▼</span></span>
+        <span class="tick-item"><span class="tick-name">AMZN</span><span class="tick-price up">$269.94 ▲</span></span>
+        <span class="tick-item"><span class="tick-name">AAPL</span><span class="tick-price up">$311.80 ▲</span></span>
+        <span class="tick-item"><span class="tick-name">TSLA</span><span class="tick-price up">$441.41 ▲</span></span>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
