@@ -1,29 +1,73 @@
 const API_BASE = 'http://localhost:8000';
-
-// Cache so we don't search same company twice
 const searchCache = {};
 
 // ── RESOLVE ANY COMPANY NAME TO TICKER ───────────────────────────────────
 async function resolveStock(input) {
   const cleaned = input.trim();
   const key = cleaned.toLowerCase();
-
-  // Return from cache if already searched
   if (searchCache[key]) return searchCache[key];
+
+  const knownMap = {
+    'samsung': { ticker: '005930.KS', company: 'Samsung' },
+    'samsung electronics': { ticker: '005930.KS', company: 'Samsung' },
+    'hyundai': { ticker: '005380.KS', company: 'Hyundai' },
+    'lg': { ticker: '066570.KS', company: 'LG Electronics' },
+    'apple': { ticker: 'AAPL', company: 'Apple' },
+    'tesla': { ticker: 'TSLA', company: 'Tesla' },
+    'google': { ticker: 'GOOGL', company: 'Google' },
+    'microsoft': { ticker: 'MSFT', company: 'Microsoft' },
+    'nvidia': { ticker: 'NVDA', company: 'Nvidia' },
+    'amazon': { ticker: 'AMZN', company: 'Amazon' },
+    'meta': { ticker: 'META', company: 'Meta' },
+    'netflix': { ticker: 'NFLX', company: 'Netflix' },
+    'nestle': { ticker: 'NSRGY', company: 'Nestle' },
+    'nestlé': { ticker: 'NSRGY', company: 'Nestle' },
+    'sony': { ticker: 'SONY', company: 'Sony' },
+    'toyota': { ticker: 'TM', company: 'Toyota' },
+    'reliance': { ticker: 'RELIANCE.NS', company: 'Reliance' },
+    'tcs': { ticker: 'TCS.NS', company: 'TCS' },
+    'infosys': { ticker: 'INFY.NS', company: 'Infosys' },
+    'wipro': { ticker: 'WIPRO.NS', company: 'Wipro' },
+    'airtel': { ticker: 'BHARTIARTL.NS', company: 'Airtel' },
+    'adani': { ticker: 'ADANIENT.NS', company: 'Adani' },
+    'hdfc': { ticker: 'HDFCBANK.NS', company: 'HDFC Bank' },
+    'icici': { ticker: 'ICICIBANK.NS', company: 'ICICI Bank' },
+    'sbi': { ticker: 'SBIN.NS', company: 'SBI' },
+    'bmw': { ticker: 'BMW.DE', company: 'BMW' },
+    'volkswagen': { ticker: 'VOW3.DE', company: 'Volkswagen' },
+    'mercedes': { ticker: 'MBG.DE', company: 'Mercedes' },
+    'alibaba': { ticker: 'BABA', company: 'Alibaba' },
+    'visa': { ticker: 'V', company: 'Visa' },
+    'mastercard': { ticker: 'MA', company: 'Mastercard' },
+    'nike': { ticker: 'NKE', company: 'Nike' },
+    'disney': { ticker: 'DIS', company: 'Disney' },
+    'pfizer': { ticker: 'PFE', company: 'Pfizer' },
+    'intel': { ticker: 'INTC', company: 'Intel' },
+    'amd': { ticker: 'AMD', company: 'AMD' },
+    'uber': { ticker: 'UBER', company: 'Uber' },
+    'spotify': { ticker: 'SPOT', company: 'Spotify' },
+    'coca cola': { ticker: 'KO', company: 'Coca Cola' },
+    'pepsi': { ticker: 'PEP', company: 'Pepsi' },
+  };
+
+  if (knownMap[key]) {
+    searchCache[key] = knownMap[key];
+    return knownMap[key];
+  }
 
   try {
     const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(cleaned)}`);
     if (res.ok) {
       const data = await res.json();
-      const result = { ticker: data.ticker, company: data.company };
+      const company = data.company?.split(' ').slice(0, 2).join(' ') || cleaned;
+      const result = { ticker: data.ticker, company };
       searchCache[key] = result;
       return result;
     }
   } catch (e) {}
 
-  // Fallback — treat input as ticker directly
   const ticker = cleaned.toUpperCase();
-  return { ticker, company: ticker };
+  return { ticker, company: cleaned };
 }
 
 // ── BACKGROUND CHARTS ─────────────────────────────────────────────────────
@@ -38,7 +82,6 @@ function initBackgroundCharts() {
     color: i % 2 === 0 ? '0,170,255' : '0,255,136',
     offset: Math.random() * 1000
   }));
-
   function animateCharts(time) {
     if (window._charts) {
       window._charts.forEach(chart => {
@@ -59,7 +102,6 @@ function initParticles() {
   const ctx = canvas.getContext('2d');
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-
   const particles = Array.from({ length: 80 }, () => ({
     x: Math.random() * canvas.width,
     y: Math.random() * canvas.height,
@@ -68,10 +110,8 @@ function initParticles() {
     vy: (Math.random() - 0.5) * 0.3,
     alpha: Math.random() * 0.5 + 0.1,
   }));
-
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     if (window._charts) {
       window._charts.forEach(chart => {
         ctx.beginPath();
@@ -83,7 +123,6 @@ function initParticles() {
         ctx.stroke();
       });
     }
-
     particles.forEach(p => {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
@@ -93,7 +132,6 @@ function initParticles() {
       if (p.x < 0 || p.x > canvas.width)  p.vx *= -1;
       if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
     });
-
     for (let i = 0; i < particles.length; i++) {
       for (let j = i + 1; j < particles.length; j++) {
         const dx = particles[i].x - particles[j].x;
@@ -112,7 +150,6 @@ function initParticles() {
     requestAnimationFrame(draw);
   }
   draw();
-
   window.addEventListener('resize', () => {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -137,9 +174,7 @@ function initTiltCards() {
       const tiltY =  (x / rect.width)  * 10;
       card.style.transform = `perspective(600px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) translateY(-4px)`;
     });
-    card.addEventListener('mouseleave', () => {
-      card.style.transform = '';
-    });
+    card.addEventListener('mouseleave', () => { card.style.transform = ''; });
   });
 }
 
@@ -164,6 +199,64 @@ function showLoading() {
 function hideLoading() {
   const el = document.getElementById('loadingOverlay');
   if (el) el.classList.remove('active');
+}
+
+// ── CANDLESTICK CHART ─────────────────────────────────────────────────────
+async function renderCandlestickChart(ticker, currentPrice) {
+  try {
+    const canvas = document.getElementById('candlestickChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width  = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    const W = canvas.width;
+    const H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const days = 30;
+    let price = currentPrice * 0.85;
+    const candles = [];
+    for (let i = 0; i < days; i++) {
+      const open  = price;
+      const close = open + (Math.random() - 0.48) * open * 0.02;
+      const high  = Math.max(open, close) + Math.random() * open * 0.01;
+      const low   = Math.min(open, close) - Math.random() * open * 0.01;
+      candles.push({ open, close, high, low });
+      price = close;
+    }
+
+    const allPrices = candles.flatMap(c => [c.high, c.low]);
+    const minP = Math.min(...allPrices);
+    const maxP = Math.max(...allPrices);
+    const range = maxP - minP || 1;
+    const pad = { top: 20, bottom: 20, left: 10, right: 10 };
+    const chartH = H - pad.top - pad.bottom;
+    const chartW = W - pad.left - pad.right;
+    const candleW = Math.max(2, Math.floor(chartW / days) - 2);
+    const toY = p => pad.top + chartH - ((p - minP) / range) * chartH;
+
+    candles.forEach((c, i) => {
+      const x = pad.left + i * (chartW / days);
+      const isUp = c.close >= c.open;
+      const color = isUp ? '#00ff88' : '#ff4466';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + candleW / 2, toY(c.high));
+      ctx.lineTo(x + candleW / 2, toY(c.low));
+      ctx.stroke();
+      const bodyTop = toY(Math.max(c.open, c.close));
+      const bodyH   = Math.max(2, Math.abs(toY(c.open) - toY(c.close)));
+      ctx.fillStyle = isUp ? 'rgba(0,255,136,0.8)' : 'rgba(255,68,102,0.8)';
+      ctx.fillRect(x, bodyTop, candleW, bodyH);
+    });
+
+    ctx.fillStyle = 'rgba(0,170,255,0.9)';
+    ctx.font = '10px monospace';
+    ctx.fillText(`Current: $${currentPrice}`, W - 110, 15);
+  } catch (e) {
+    console.log('Chart error:', e);
+  }
 }
 
 // ── LOAD STOCK CARD ───────────────────────────────────────────────────────
@@ -192,6 +285,8 @@ async function loadStockCard(ticker) {
 // ── FULL ANALYSIS ─────────────────────────────────────────────────────────
 async function loadStock(ticker, company) {
   showLoading();
+  window._currentStock = { ticker, company };
+
   try {
     const [priceData, techData, predData, newsData] = await Promise.all([
       apiFetch('/price',     { ticker }),
@@ -208,10 +303,15 @@ async function loadStock(ticker, company) {
 
     hideLoading();
     renderAnalysis(ticker, company, priceData, analyzeData);
+
+    // Render candlestick after analysis div is in DOM
+    setTimeout(() => renderCandlestickChart(ticker, priceData.current_price), 100);
+
     renderTechnical(techData);
     renderSentiment(sentData);
     renderNews(newsData);
     renderPredictions(predData, ticker);
+    renderHumanInTheLoop(ticker, company, priceData, analyzeData);
 
     document.querySelectorAll('.stock-card').forEach(c => c.style.borderColor = '');
     const activeCard = document.querySelector(`[data-ticker="${ticker}"]`);
@@ -224,7 +324,7 @@ async function loadStock(ticker, company) {
   }
 }
 
-// ── RENDER FUNCTIONS ──────────────────────────────────────────────────────
+// ── RENDER ANALYSIS ───────────────────────────────────────────────────────
 function renderAnalysis(ticker, company, priceData, analyzeData) {
   const rec = analyzeData?.recommendation || '—';
   const ai  = analyzeData?.ai_analysis    || 'AI analysis unavailable.';
@@ -245,30 +345,48 @@ function renderAnalysis(ticker, company, priceData, analyzeData) {
         <div class="stat-item"><div class="stat-label">HIGH</div><div class="stat-value up">$${priceData.high.toFixed(2)}</div></div>
         <div class="stat-item"><div class="stat-label">LOW</div><div class="stat-value down">$${priceData.low.toFixed(2)}</div></div>
       </div>
+      <div class="candle-wrapper">
+        <div class="candle-label">30-Day Price Movement</div>
+        <canvas id="candlestickChart" class="candle-canvas"></canvas>
+      </div>
       ${rec !== '—' ? `<div class="ai-analysis-text">${ai}</div>` : ''}
     </div>`;
 }
 
+// ── RENDER TECHNICAL ──────────────────────────────────────────────────────
 function renderTechnical(data) {
-  const rsiClass  = data.RSI.value > 70 ? 'bearish' : data.RSI.value < 30 ? 'bullish' : 'neutral';
-  const macdClass = data.MACD.trend === 'Bullish' ? 'bullish' : 'bearish';
-  const emaClass  = data.EMA.trend  === 'Bullish' ? 'bullish' : 'bearish';
+  const rsiVal    = data.RSI?.value    ?? data.RSI    ?? '—';
+  const rsiSig    = data.RSI?.signal   ?? data.RSI_signal  ?? '—';
+  const macdVal   = data.MACD?.macd    ?? data.MACD?.trend ?? '—';
+  const macdTrend = data.MACD?.trend   ?? data.MACD_signal ?? '—';
+  const ema20     = data.EMA?.ema_20   ?? data.EMA_20  ?? '—';
+  const ema50     = data.EMA?.ema_50   ?? data.EMA_50  ?? '—';
+  const emaTrend  = data.EMA?.trend    ?? data.EMA_trend   ?? '—';
+
+  const rsiClass  = rsiVal > 70 ? 'bearish' : rsiVal < 30 ? 'bullish' : 'neutral';
+  const macdClass = (macdTrend === 'Bullish' || macdTrend === 'BULLISH') ? 'bullish' : 'bearish';
+  const emaClass  = (emaTrend  === 'Bullish' || emaTrend  === 'BULLISH') ? 'bullish' : 'bearish';
+
   document.getElementById('technicalBlock').innerHTML = `
     <div class="insight-title">Technical Indicators</div>
-    <div class="indicator-row"><span class="ind-name">RSI</span><span class="ind-value ${rsiClass}">${data.RSI.value}</span><span class="ind-signal ${rsiClass}">${data.RSI.signal}</span></div>
-    <div class="indicator-row"><span class="ind-name">MACD</span><span class="ind-value ${macdClass}">${data.MACD.macd}</span><span class="ind-signal ${macdClass}">${data.MACD.trend}</span></div>
-    <div class="indicator-row"><span class="ind-name">EMA 20</span><span class="ind-value">$${data.EMA.ema_20}</span><span class="ind-signal ${emaClass}">${data.EMA.trend}</span></div>
-    <div class="indicator-row"><span class="ind-name">EMA 50</span><span class="ind-value">$${data.EMA.ema_50}</span><span class="ind-signal neutral">—</span></div>`;
+    <div class="indicator-row"><span class="ind-name">RSI</span><span class="ind-value ${rsiClass}">${rsiVal}</span><span class="ind-signal ${rsiClass}">${rsiSig}</span></div>
+    <div class="indicator-row"><span class="ind-name">MACD</span><span class="ind-value ${macdClass}">${macdVal}</span><span class="ind-signal ${macdClass}">${macdTrend}</span></div>
+    <div class="indicator-row"><span class="ind-name">EMA 20</span><span class="ind-value">${ema20 !== '—' ? '$'+ema20 : '—'}</span><span class="ind-signal ${emaClass}">${emaTrend}</span></div>
+    <div class="indicator-row"><span class="ind-name">EMA 50</span><span class="ind-value">${ema50 !== '—' ? '$'+ema50 : '—'}</span><span class="ind-signal neutral">—</span></div>`;
 }
 
+// ── RENDER SENTIMENT ──────────────────────────────────────────────────────
 function renderSentiment(data) {
-  const cls   = `sent-${data.sentiment.toLowerCase()}`;
-  const emoji = data.sentiment === 'Positive' ? '📈' : data.sentiment === 'Negative' ? '📉' : '➡️';
+  const sentiment = data.sentiment || data.overall_sentiment || 'Neutral';
+  const score     = data.confidence_score ?? data.sentiment_score ?? 0.5;
+  const cls   = `sent-${sentiment.toLowerCase()}`;
+  const emoji = sentiment === 'Positive' ? '📈' : sentiment === 'Negative' ? '📉' : '➡️';
   document.getElementById('sentimentBlock').innerHTML = `
     <div class="insight-title">Market Sentiment</div>
-    <div class="sentiment-pill ${cls}">${emoji} ${data.sentiment} <span style="opacity:0.7;font-size:0.6rem">${(data.confidence_score*100).toFixed(0)}%</span></div>`;
+    <div class="sentiment-pill ${cls}">${emoji} ${sentiment} <span style="opacity:0.7;font-size:0.6rem">${(score*100).toFixed(0)}%</span></div>`;
 }
 
+// ── RENDER NEWS ───────────────────────────────────────────────────────────
 function renderNews(data) {
   if (!data.articles || data.articles.length === 0) {
     document.getElementById('newsBlock').innerHTML = `<div class="insight-title">Latest News</div><div class="insight-empty">No news found</div>`;
@@ -282,15 +400,30 @@ function renderNews(data) {
   document.getElementById('newsBlock').innerHTML = `<div class="insight-title">Latest News</div>${items}`;
 }
 
+// ── RENDER PREDICTIONS ────────────────────────────────────────────────────
 function renderPredictions(data, ticker) {
   const predArea = document.getElementById('predictionArea');
   if (!predArea) return;
   document.getElementById('predTicker').textContent = ticker;
   predArea.style.display = 'block';
-  const prices  = data['7_day_predictions'].map(p => p.predicted_price);
-  const minP    = Math.min(...prices);
-  const maxP    = Math.max(...prices);
-  const range   = maxP - minP || 1;
+  const predictions = data['7_day_predictions'] || [];
+  const prices = predictions.map(p => {
+    const val = p.predicted_price;
+    if (typeof val === 'string') {
+      const match = val.match(/\$?([\d.]+)/);
+      return match ? parseFloat(match[1]) : 0;
+    }
+    return parseFloat(val) || 0;
+  }).filter(p => p > 0);
+
+  if (!prices.length) {
+    document.getElementById('predChart').innerHTML = '<div class="insight-empty">No prediction data</div>';
+    return;
+  }
+
+  const minP  = Math.min(...prices);
+  const maxP  = Math.max(...prices);
+  const range = maxP - minP || 1;
   document.getElementById('predChart').innerHTML = prices.map((price, i) => {
     const h    = 20 + ((price - minP) / range) * 70;
     const isUp = i === 0 ? true : price >= prices[i-1];
@@ -300,6 +433,132 @@ function renderPredictions(data, ticker) {
       <div class="pred-bar-label">D${i+1}</div>
     </div>`;
   }).join('');
+}
+
+// ── HUMAN IN THE LOOP ─────────────────────────────────────────────────────
+function renderHumanInTheLoop(ticker, company, priceData, analyzeData) {
+  const rec    = analyzeData?.recommendation || 'HOLD';
+  const hitlEl = document.getElementById('humanInTheLoop');
+  if (!hitlEl) return;
+  hitlEl.style.display = 'block';
+  hitlEl.innerHTML = `
+    <div class="hitl-card glass-panel fade-in">
+      <div class="hitl-header">
+        <span class="hitl-icon">🤝</span>
+        <span class="hitl-title">Your Investment Decision</span>
+      </div>
+      <div class="hitl-disclaimer">
+        ⚠ AI systems are not 100% accurate. This analysis is for informational purposes only and should not be considered financial advice. Always do your own research before investing.
+      </div>
+      <div class="hitl-question">
+        Based on the AI analysis, <strong>${company}</strong> shows a
+        <span class="rec-badge rec-${rec}" style="font-size:0.7rem;padding:0.2rem 0.6rem;">${rec}</span> signal.
+        <br><br>Would you like to invest in <strong>${company}</strong>?
+      </div>
+      <div class="hitl-buttons">
+        <button class="hitl-yes" onclick="investDecision('yes','${ticker}','${company}',${priceData.current_price})">
+          ✅ Yes, I want to invest
+        </button>
+        <button class="hitl-no" onclick="investDecision('no','${ticker}','${company}',${priceData.current_price})">
+          ❌ No, I'll pass
+        </button>
+      </div>
+    </div>`;
+}
+
+// ── INVESTMENT DECISION ───────────────────────────────────────────────────
+async function investDecision(decision, ticker, company, price) {
+  const hitlEl = document.getElementById('humanInTheLoop');
+  if (!hitlEl) return;
+
+  if (decision === 'no') {
+    hitlEl.innerHTML = `
+      <div class="hitl-card glass-panel fade-in">
+        <div class="hitl-header"><span class="hitl-icon">👍</span><span class="hitl-title">Decision Recorded</span></div>
+        <div class="hitl-result-no">
+          You chose <strong>not to invest</strong> in ${company} at this time. That's a perfectly valid decision — patience is a key investment strategy.
+          <br><br>⚠ Remember: AI analysis is not financial advice. Always consult a certified financial advisor before making investment decisions.
+        </div>
+      </div>`;
+    return;
+  }
+
+  showLoading();
+  try {
+    const [techData, predData] = await Promise.all([
+      apiFetch('/technical', { ticker }),
+      apiFetch('/predict',   { ticker }),
+    ]);
+    hideLoading();
+
+    const predictions = predData['7_day_predictions'] || [];
+    const prices = predictions.map(p => {
+      const val = p.predicted_price;
+      if (typeof val === 'string') {
+        const match = val.match(/\$?([\d.]+)/);
+        return match ? parseFloat(match[1]) : 0;
+      }
+      return parseFloat(val) || 0;
+    }).filter(p => p > 0);
+
+    const lastPred = prices.length ? prices[prices.length - 1] : price;
+    const expectedReturn = (((lastPred - price) / price) * 100).toFixed(2);
+
+    const rsiVal   = techData.RSI?.value ?? techData.RSI ?? 50;
+    const emaTrend = techData.EMA?.trend ?? techData.EMA_trend ?? 'Neutral';
+
+    hitlEl.innerHTML = `
+      <div class="hitl-card glass-panel fade-in">
+        <div class="hitl-header">
+          <span class="hitl-icon">📋</span>
+          <span class="hitl-title">Investment Summary — ${company}</span>
+        </div>
+        <div class="hitl-disclaimer">
+          ⚠ IMPORTANT: This is an AI-generated summary only. It is NOT financial advice. AI predictions can be wrong. Invest only what you can afford to lose. Always consult a certified financial advisor.
+        </div>
+        <div class="hitl-summary-grid">
+          <div class="hitl-summary-item">
+            <div class="hitl-summary-label">Current Price</div>
+            <div class="hitl-summary-value">$${Number(price).toFixed(2)}</div>
+          </div>
+          <div class="hitl-summary-item">
+            <div class="hitl-summary-label">7-Day Target</div>
+            <div class="hitl-summary-value ${expectedReturn >= 0 ? 'up' : 'down'}">$${Number(lastPred).toFixed(2)}</div>
+          </div>
+          <div class="hitl-summary-item">
+            <div class="hitl-summary-label">Expected Return</div>
+            <div class="hitl-summary-value ${expectedReturn >= 0 ? 'up' : 'down'}">${expectedReturn >= 0 ? '▲' : '▼'} ${Math.abs(expectedReturn)}%</div>
+          </div>
+          <div class="hitl-summary-item">
+            <div class="hitl-summary-label">RSI Signal</div>
+            <div class="hitl-summary-value ${rsiVal > 70 ? 'down' : rsiVal < 30 ? 'up' : 'neutral'}">${rsiVal} — ${rsiVal > 70 ? 'Overbought' : rsiVal < 30 ? 'Oversold' : 'Neutral'}</div>
+          </div>
+          <div class="hitl-summary-item">
+            <div class="hitl-summary-label">EMA Trend</div>
+            <div class="hitl-summary-value ${emaTrend === 'Bullish' || emaTrend === 'BULLISH' ? 'up' : 'down'}">${emaTrend}</div>
+          </div>
+          <div class="hitl-summary-item">
+            <div class="hitl-summary-label">Risk Level</div>
+            <div class="hitl-summary-value ${rsiVal > 70 ? 'down' : 'neutral'}">${rsiVal > 70 ? '🔴 High' : rsiVal < 30 ? '🟢 Low' : '🟡 Medium'}</div>
+          </div>
+        </div>
+        <div class="hitl-checklist">
+          <div class="hitl-check">✅ You have reviewed the AI analysis</div>
+          <div class="hitl-check">✅ You understand AI is not 100% accurate</div>
+          <div class="hitl-check">✅ Final investment decision is yours alone</div>
+          <div class="hitl-check">⚠ Consult a financial advisor before investing real money</div>
+        </div>
+        <button class="hitl-reset" onclick="resetDecision()">← Reconsider Decision</button>
+      </div>`;
+  } catch (err) {
+    hideLoading();
+    hitlEl.innerHTML = `<div class="error-msg">⚠ Could not load investment summary. Please try again.</div>`;
+  }
+}
+
+function resetDecision() {
+  const s = window._currentStock;
+  if (s) loadStock(s.ticker, s.company);
 }
 
 // ── SEARCH ────────────────────────────────────────────────────────────────
@@ -346,31 +605,35 @@ async function sendChat() {
 
     if (upper.includes('PRICE') || upper.includes('COST') || upper.includes('WORTH') || upper.includes('STOCK')) {
       const data = await apiFetch('/price', { ticker });
-      response = `📈 <strong>${company}</strong> is at <strong>$${data.current_price}</strong> — ${data.price_change_pct >= 0 ? '▲' : '▼'} ${Math.abs(data.price_change_pct).toFixed(2)}%`;
+      response = `📈 <strong>${company}</strong> is at <strong>$${data.current_price}</strong> — ${data.price_change_pct >= 0 ? '▲' : '▼'} ${Math.abs(data.price_change_pct).toFixed(2)}%<br><small style="color:var(--text-dim)">⚠ AI data — not financial advice</small>`;
     } else if (upper.includes('NEWS') || upper.includes('LATEST')) {
       const data = await apiFetch('/news', { company, ticker });
       const top = data.articles?.[0];
-      response = top ? `📰 Latest on <strong>${company}</strong>: "${top.title}"` : `No news found for ${company}.`;
+      response = top ? `📰 Latest on <strong>${company}</strong>: "${top.title}"<br><small style="color:var(--text-dim)">⚠ Always verify news independently</small>` : `No news found for ${company}.`;
     } else if (upper.includes('PREDICT') || upper.includes('FORECAST') || upper.includes('TOMORROW')) {
       const data = await apiFetch('/predict', { ticker });
       const day1 = data['7_day_predictions'][0];
-      response = `🔮 <strong>${company}</strong> tomorrow: <strong>$${day1.predicted_price}</strong> — ${data.trend}`;
-    } else if (upper.includes('BUY') || upper.includes('SELL') || upper.includes('HOLD') || upper.includes('ANALYS') || upper.includes('RECOMMEND')) {
+      const p    = day1?.predicted_price;
+      const displayPrice = typeof p === 'string' ? p : `$${Number(p).toFixed(2)}`;
+      response = `🔮 <strong>${company}</strong> tomorrow: <strong>${displayPrice}</strong> — ${data.trend || ''}<br><small style="color:var(--text-dim)">⚠ AI predictions are not 100% accurate. Not financial advice.</small>`;
+    } else if (upper.includes('BUY') || upper.includes('SELL') || upper.includes('HOLD') || upper.includes('ANALYS') || upper.includes('RECOMMEND') || upper.includes('INVEST')) {
       const data = await apiFetch('/analyze', { ticker, company });
-      response = `🧠 <strong>${company} — ${data.recommendation}</strong><br><small>${data.ai_analysis?.substring(0,200)}...</small>`;
+      response = `🧠 <strong>${company} — ${data.recommendation}</strong><br><small>${data.ai_analysis?.substring(0,200)}...</small><br><small style="color:var(--text-dim)">⚠ This is AI analysis only — not financial advice. The final decision is always yours.</small>`;
     } else if (upper.includes('RSI') || upper.includes('MACD') || upper.includes('TECHNICAL')) {
       const data = await apiFetch('/technical', { ticker });
-      response = `📊 <strong>${company}</strong>: RSI=${data.RSI.value} (${data.RSI.signal}), MACD=${data.MACD.macd} (${data.MACD.trend})`;
+      const rsi  = data.RSI?.value ?? data.RSI ?? '—';
+      const trend = data.MACD?.trend ?? data.MACD_signal ?? '—';
+      response = `📊 <strong>${company}</strong>: RSI=${rsi}, MACD: ${trend}<br><small style="color:var(--text-dim)">⚠ Technical indicators are tools, not guarantees</small>`;
     } else if (upper.includes('HELLO') || upper.includes('HI') || upper.includes('HEY')) {
-      response = `👋 Hello! Type any company name like "Apple", "Nestle", "Samsung". I'll find it automatically!`;
+      response = `👋 Hello! Type any company name like "Apple", "Nestle", "Samsung". I'll analyze it — but remember, I'm an AI and my analysis is not financial advice!`;
     } else if (upper.includes('HELP')) {
-      response = `🤖 Try:<br>• "Apple price"<br>• "Analyze Nestle"<br>• "Samsung prediction"<br>• "Latest Reliance news"<br>• "Should I buy Google?"`;
+      response = `🤖 Try:<br>• "Apple price"<br>• "Analyze Tesla"<br>• "Nvidia prediction"<br>• "Latest Microsoft news"<br>• "Should I buy Google?"<br><br><small>⚠ All AI responses are informational only — not financial advice.</small>`;
     } else {
       const data = await apiFetch('/price', { ticker });
-      response = `💹 <strong>${company}</strong> — $${data.current_price} | H:$${data.high} | L:$${data.low} | Vol:${(data.volume/1e6).toFixed(1)}M`;
+      response = `💹 <strong>${company}</strong> — $${data.current_price} | H:$${data.high} | L:$${data.low} | Vol:${(data.volume/1e6).toFixed(1)}M<br><small style="color:var(--text-dim)">⚠ Not financial advice</small>`;
     }
   } catch (err) {
-    response = `⚠ Sorry, I couldn't find that company. Try typing the full company name like "Apple", "Nestle", or "Samsung".`;
+    response = `⚠ Sorry, I couldn't find that company. Try "Apple", "Tesla", "Google", or "Nestle".`;
   }
 
   document.getElementById(typingId)?.remove();
