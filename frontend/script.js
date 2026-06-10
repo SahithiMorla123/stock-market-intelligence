@@ -15,15 +15,18 @@ async function resolveStock(input) {
     'apple': { ticker: 'AAPL', company: 'Apple' },
     'tesla': { ticker: 'TSLA', company: 'Tesla' },
     'google': { ticker: 'GOOGL', company: 'Google' },
+    'alphabet': { ticker: 'GOOGL', company: 'Google' },
     'microsoft': { ticker: 'MSFT', company: 'Microsoft' },
     'nvidia': { ticker: 'NVDA', company: 'Nvidia' },
     'amazon': { ticker: 'AMZN', company: 'Amazon' },
     'meta': { ticker: 'META', company: 'Meta' },
+    'facebook': { ticker: 'META', company: 'Meta' },
     'netflix': { ticker: 'NFLX', company: 'Netflix' },
     'nestle': { ticker: 'NSRGY', company: 'Nestle' },
     'nestlé': { ticker: 'NSRGY', company: 'Nestle' },
     'sony': { ticker: 'SONY', company: 'Sony' },
     'toyota': { ticker: 'TM', company: 'Toyota' },
+    'honda': { ticker: 'HMC', company: 'Honda' },
     'reliance': { ticker: 'RELIANCE.NS', company: 'Reliance' },
     'tcs': { ticker: 'TCS.NS', company: 'TCS' },
     'infosys': { ticker: 'INFY.NS', company: 'Infosys' },
@@ -47,12 +50,27 @@ async function resolveStock(input) {
     'uber': { ticker: 'UBER', company: 'Uber' },
     'spotify': { ticker: 'SPOT', company: 'Spotify' },
     'coca cola': { ticker: 'KO', company: 'Coca Cola' },
+    'cocacola': { ticker: 'KO', company: 'Coca Cola' },
     'pepsi': { ticker: 'PEP', company: 'Pepsi' },
+    'goldman': { ticker: 'GS', company: 'Goldman Sachs' },
+    'jpmorgan': { ticker: 'JPM', company: 'JP Morgan' },
+    'jp morgan': { ticker: 'JPM', company: 'JP Morgan' },
+    'paypal': { ticker: 'PYPL', company: 'PayPal' },
+    'oracle': { ticker: 'ORCL', company: 'Oracle' },
+    'salesforce': { ticker: 'CRM', company: 'Salesforce' },
+    'adobe': { ticker: 'ADBE', company: 'Adobe' },
   };
 
   if (knownMap[key]) {
     searchCache[key] = knownMap[key];
     return knownMap[key];
+  }
+
+  for (const [name, val] of Object.entries(knownMap)) {
+    if (key.includes(name) || name.includes(key)) {
+      searchCache[key] = val;
+      return val;
+    }
   }
 
   try {
@@ -66,8 +84,20 @@ async function resolveStock(input) {
     }
   } catch (e) {}
 
-  const ticker = cleaned.toUpperCase();
-  return { ticker, company: cleaned };
+  return { ticker: cleaned.toUpperCase(), company: cleaned };
+}
+
+// ── EXTRACT COMPANY FROM SENTENCE ─────────────────────────────────────────
+async function resolveStockFromSentence(text) {
+  const skipWords = ['how','is','are','was','were','doing','performing','stock',
+    'price','tell','me','about','what','the','a','an','of','for','should','i',
+    'buy','sell','hold','analyze','analysis','predict','prediction','news',
+    'latest','today','current','give','show','find','get','check','will',
+    'going','to','do','can','please','my','your','its','their','this','that'];
+  const words = text.toLowerCase().replace(/[?!.,]/g, '').split(' ');
+  const companyWords = words.filter(w => !skipWords.includes(w) && w.length > 1);
+  const searchTerm = companyWords.join(' ') || text;
+  return resolveStock(searchTerm);
 }
 
 // ── BACKGROUND CHARTS ─────────────────────────────────────────────────────
@@ -202,7 +232,7 @@ function hideLoading() {
 }
 
 // ── CANDLESTICK CHART ─────────────────────────────────────────────────────
-async function renderCandlestickChart(ticker, currentPrice) {
+function renderCandlestickChart(ticker, currentPrice) {
   try {
     const canvas = document.getElementById('candlestickChart');
     if (!canvas) return;
@@ -238,8 +268,7 @@ async function renderCandlestickChart(ticker, currentPrice) {
     candles.forEach((c, i) => {
       const x = pad.left + i * (chartW / days);
       const isUp = c.close >= c.open;
-      const color = isUp ? '#00ff88' : '#ff4466';
-      ctx.strokeStyle = color;
+      ctx.strokeStyle = isUp ? '#00ff88' : '#ff4466';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(x + candleW / 2, toY(c.high));
@@ -303,10 +332,7 @@ async function loadStock(ticker, company) {
 
     hideLoading();
     renderAnalysis(ticker, company, priceData, analyzeData);
-
-    // Render candlestick after analysis div is in DOM
     setTimeout(() => renderCandlestickChart(ticker, priceData.current_price), 100);
-
     renderTechnical(techData);
     renderSentiment(sentData);
     renderNews(newsData);
@@ -320,7 +346,7 @@ async function loadStock(ticker, company) {
   } catch (err) {
     hideLoading();
     document.getElementById('analysisArea').innerHTML =
-      `<div class="glass-card analysis-content"><div class="error-msg">⚠ Sorry, could not find data for "${company}". Please try another company.</div></div>`;
+      `<div class="glass-card analysis-content"><div class="error-msg">Sorry, could not find data for "${company}". Please try another company.</div></div>`;
   }
 }
 
@@ -362,11 +388,9 @@ function renderTechnical(data) {
   const ema20     = data.EMA?.ema_20   ?? data.EMA_20  ?? '—';
   const ema50     = data.EMA?.ema_50   ?? data.EMA_50  ?? '—';
   const emaTrend  = data.EMA?.trend    ?? data.EMA_trend   ?? '—';
-
   const rsiClass  = rsiVal > 70 ? 'bearish' : rsiVal < 30 ? 'bullish' : 'neutral';
   const macdClass = (macdTrend === 'Bullish' || macdTrend === 'BULLISH') ? 'bullish' : 'bearish';
   const emaClass  = (emaTrend  === 'Bullish' || emaTrend  === 'BULLISH') ? 'bullish' : 'bearish';
-
   document.getElementById('technicalBlock').innerHTML = `
     <div class="insight-title">Technical Indicators</div>
     <div class="indicator-row"><span class="ind-name">RSI</span><span class="ind-value ${rsiClass}">${rsiVal}</span><span class="ind-signal ${rsiClass}">${rsiSig}</span></div>
@@ -380,10 +404,9 @@ function renderSentiment(data) {
   const sentiment = data.sentiment || data.overall_sentiment || 'Neutral';
   const score     = data.confidence_score ?? data.sentiment_score ?? 0.5;
   const cls   = `sent-${sentiment.toLowerCase()}`;
-  const emoji = sentiment === 'Positive' ? '📈' : sentiment === 'Negative' ? '📉' : '➡️';
   document.getElementById('sentimentBlock').innerHTML = `
     <div class="insight-title">Market Sentiment</div>
-    <div class="sentiment-pill ${cls}">${emoji} ${sentiment} <span style="opacity:0.7;font-size:0.6rem">${(score*100).toFixed(0)}%</span></div>`;
+    <div class="sentiment-pill ${cls}">${sentiment} <span style="opacity:0.7;font-size:0.6rem">${(score*100).toFixed(0)}%</span></div>`;
 }
 
 // ── RENDER NEWS ───────────────────────────────────────────────────────────
@@ -395,7 +418,7 @@ function renderNews(data) {
   const items = data.articles.slice(0,3).map(a => `
     <div class="news-item">
       <div class="news-title">${a.title}</div>
-      <div class="news-meta">${a.source} · ${a.published} <a href="${a.url}" target="_blank" class="news-link">READ →</a></div>
+      <div class="news-meta">${a.source} · ${a.published} <a href="${a.url}" target="_blank" class="news-link">READ</a></div>
     </div>`).join('');
   document.getElementById('newsBlock').innerHTML = `<div class="insight-title">Latest News</div>${items}`;
 }
@@ -444,26 +467,41 @@ function renderHumanInTheLoop(ticker, company, priceData, analyzeData) {
   hitlEl.innerHTML = `
     <div class="hitl-card glass-panel fade-in">
       <div class="hitl-header">
-        <span class="hitl-icon">🤝</span>
         <span class="hitl-title">Your Investment Decision</span>
+        <button class="hitl-toggle" onclick="toggleHitl(this, 'hitlBody')">▲ Minimize</button>
       </div>
-      <div class="hitl-disclaimer">
-        ⚠ AI systems are not 100% accurate. This analysis is for informational purposes only and should not be considered financial advice. Always do your own research before investing.
-      </div>
-      <div class="hitl-question">
-        Based on the AI analysis, <strong>${company}</strong> shows a
-        <span class="rec-badge rec-${rec}" style="font-size:0.7rem;padding:0.2rem 0.6rem;">${rec}</span> signal.
-        <br><br>Would you like to invest in <strong>${company}</strong>?
-      </div>
-      <div class="hitl-buttons">
-        <button class="hitl-yes" onclick="investDecision('yes','${ticker}','${company}',${priceData.current_price})">
-          ✅ Yes, I want to invest
-        </button>
-        <button class="hitl-no" onclick="investDecision('no','${ticker}','${company}',${priceData.current_price})">
-          ❌ No, I'll pass
-        </button>
+      <div id="hitlBody">
+        <div class="hitl-disclaimer">
+          AI systems are not 100% accurate. This analysis is for informational purposes only and should not be considered financial advice. Always do your own research before investing.
+        </div>
+        <div class="hitl-question">
+          Based on the AI analysis, <strong>${company}</strong> shows a
+          <span class="rec-badge rec-${rec}" style="font-size:0.7rem;padding:0.2rem 0.6rem;">${rec}</span> signal.
+          <br><br>Would you like to invest in <strong>${company}</strong>?
+        </div>
+        <div class="hitl-buttons">
+          <button class="hitl-yes" onclick="investDecision('yes','${ticker}','${company}',${priceData.current_price})">
+            Yes, I want to invest
+          </button>
+          <button class="hitl-no" onclick="investDecision('no','${ticker}','${company}',${priceData.current_price})">
+            No, I will pass
+          </button>
+        </div>
       </div>
     </div>`;
+}
+
+// ── TOGGLE MINIMIZE/MAXIMIZE ──────────────────────────────────────────────
+function toggleHitl(btn, bodyId) {
+  const body = document.getElementById(bodyId);
+  if (!body || !btn) return;
+  if (body.style.display === 'none') {
+    body.style.display = 'block';
+    btn.textContent = '▲ Minimize';
+  } else {
+    body.style.display = 'none';
+    btn.textContent = '▼ Expand';
+  }
 }
 
 // ── INVESTMENT DECISION ───────────────────────────────────────────────────
@@ -474,10 +512,15 @@ async function investDecision(decision, ticker, company, price) {
   if (decision === 'no') {
     hitlEl.innerHTML = `
       <div class="hitl-card glass-panel fade-in">
-        <div class="hitl-header"><span class="hitl-icon">👍</span><span class="hitl-title">Decision Recorded</span></div>
-        <div class="hitl-result-no">
-          You chose <strong>not to invest</strong> in ${company} at this time. That's a perfectly valid decision — patience is a key investment strategy.
-          <br><br>⚠ Remember: AI analysis is not financial advice. Always consult a certified financial advisor before making investment decisions.
+        <div class="hitl-header">
+          <span class="hitl-title">Decision Recorded</span>
+          <button class="hitl-toggle" onclick="toggleHitl(this, 'hitlBodyNo')">▲ Minimize</button>
+        </div>
+        <div id="hitlBodyNo">
+          <div class="hitl-result-no">
+            You chose <strong>not to invest</strong> in ${company} at this time. That is a perfectly valid decision — patience is a key investment strategy.
+            <br><br>Remember: AI analysis is not financial advice. Always consult a certified financial advisor before making investment decisions.
+          </div>
         </div>
       </div>`;
     return;
@@ -501,58 +544,59 @@ async function investDecision(decision, ticker, company, price) {
       return parseFloat(val) || 0;
     }).filter(p => p > 0);
 
-    const lastPred = prices.length ? prices[prices.length - 1] : price;
+    const lastPred       = prices.length ? prices[prices.length - 1] : price;
     const expectedReturn = (((lastPred - price) / price) * 100).toFixed(2);
-
-    const rsiVal   = techData.RSI?.value ?? techData.RSI ?? 50;
-    const emaTrend = techData.EMA?.trend ?? techData.EMA_trend ?? 'Neutral';
+    const rsiVal         = techData.RSI?.value ?? techData.RSI ?? 50;
+    const emaTrend       = techData.EMA?.trend ?? techData.EMA_trend ?? 'Neutral';
 
     hitlEl.innerHTML = `
       <div class="hitl-card glass-panel fade-in">
         <div class="hitl-header">
-          <span class="hitl-icon">📋</span>
           <span class="hitl-title">Investment Summary — ${company}</span>
+          <button class="hitl-toggle" onclick="toggleHitl(this, 'hitlBodySummary')">▲ Minimize</button>
         </div>
-        <div class="hitl-disclaimer">
-          ⚠ IMPORTANT: This is an AI-generated summary only. It is NOT financial advice. AI predictions can be wrong. Invest only what you can afford to lose. Always consult a certified financial advisor.
+        <div id="hitlBodySummary">
+          <div class="hitl-disclaimer">
+            IMPORTANT: This is an AI-generated summary only. It is NOT financial advice. AI predictions can be wrong. Invest only what you can afford to lose. Always consult a certified financial advisor.
+          </div>
+          <div class="hitl-summary-grid">
+            <div class="hitl-summary-item">
+              <div class="hitl-summary-label">Current Price</div>
+              <div class="hitl-summary-value">$${Number(price).toFixed(2)}</div>
+            </div>
+            <div class="hitl-summary-item">
+              <div class="hitl-summary-label">7-Day Target</div>
+              <div class="hitl-summary-value ${expectedReturn >= 0 ? 'up' : 'down'}">$${Number(lastPred).toFixed(2)}</div>
+            </div>
+            <div class="hitl-summary-item">
+              <div class="hitl-summary-label">Expected Return</div>
+              <div class="hitl-summary-value ${expectedReturn >= 0 ? 'up' : 'down'}">${expectedReturn >= 0 ? '▲' : '▼'} ${Math.abs(expectedReturn)}%</div>
+            </div>
+            <div class="hitl-summary-item">
+              <div class="hitl-summary-label">RSI Signal</div>
+              <div class="hitl-summary-value ${rsiVal > 70 ? 'down' : rsiVal < 30 ? 'up' : 'neutral'}">${rsiVal} — ${rsiVal > 70 ? 'Overbought' : rsiVal < 30 ? 'Oversold' : 'Neutral'}</div>
+            </div>
+            <div class="hitl-summary-item">
+              <div class="hitl-summary-label">EMA Trend</div>
+              <div class="hitl-summary-value ${emaTrend === 'Bullish' || emaTrend === 'BULLISH' ? 'up' : 'down'}">${emaTrend}</div>
+            </div>
+            <div class="hitl-summary-item">
+              <div class="hitl-summary-label">Risk Level</div>
+              <div class="hitl-summary-value">${rsiVal > 70 ? 'High Risk' : rsiVal < 30 ? 'Low Risk' : 'Medium Risk'}</div>
+            </div>
+          </div>
+          <div class="hitl-checklist">
+            <div class="hitl-check">You have reviewed the AI analysis</div>
+            <div class="hitl-check">You understand AI is not 100% accurate</div>
+            <div class="hitl-check">Final investment decision is yours alone</div>
+            <div class="hitl-check">Consult a financial advisor before investing real money</div>
+          </div>
+          <button class="hitl-reset" onclick="resetDecision()">← Reconsider Decision</button>
         </div>
-        <div class="hitl-summary-grid">
-          <div class="hitl-summary-item">
-            <div class="hitl-summary-label">Current Price</div>
-            <div class="hitl-summary-value">$${Number(price).toFixed(2)}</div>
-          </div>
-          <div class="hitl-summary-item">
-            <div class="hitl-summary-label">7-Day Target</div>
-            <div class="hitl-summary-value ${expectedReturn >= 0 ? 'up' : 'down'}">$${Number(lastPred).toFixed(2)}</div>
-          </div>
-          <div class="hitl-summary-item">
-            <div class="hitl-summary-label">Expected Return</div>
-            <div class="hitl-summary-value ${expectedReturn >= 0 ? 'up' : 'down'}">${expectedReturn >= 0 ? '▲' : '▼'} ${Math.abs(expectedReturn)}%</div>
-          </div>
-          <div class="hitl-summary-item">
-            <div class="hitl-summary-label">RSI Signal</div>
-            <div class="hitl-summary-value ${rsiVal > 70 ? 'down' : rsiVal < 30 ? 'up' : 'neutral'}">${rsiVal} — ${rsiVal > 70 ? 'Overbought' : rsiVal < 30 ? 'Oversold' : 'Neutral'}</div>
-          </div>
-          <div class="hitl-summary-item">
-            <div class="hitl-summary-label">EMA Trend</div>
-            <div class="hitl-summary-value ${emaTrend === 'Bullish' || emaTrend === 'BULLISH' ? 'up' : 'down'}">${emaTrend}</div>
-          </div>
-          <div class="hitl-summary-item">
-            <div class="hitl-summary-label">Risk Level</div>
-            <div class="hitl-summary-value ${rsiVal > 70 ? 'down' : 'neutral'}">${rsiVal > 70 ? '🔴 High' : rsiVal < 30 ? '🟢 Low' : '🟡 Medium'}</div>
-          </div>
-        </div>
-        <div class="hitl-checklist">
-          <div class="hitl-check">✅ You have reviewed the AI analysis</div>
-          <div class="hitl-check">✅ You understand AI is not 100% accurate</div>
-          <div class="hitl-check">✅ Final investment decision is yours alone</div>
-          <div class="hitl-check">⚠ Consult a financial advisor before investing real money</div>
-        </div>
-        <button class="hitl-reset" onclick="resetDecision()">← Reconsider Decision</button>
       </div>`;
   } catch (err) {
     hideLoading();
-    hitlEl.innerHTML = `<div class="error-msg">⚠ Could not load investment summary. Please try again.</div>`;
+    hitlEl.innerHTML = `<div class="error-msg">Could not load investment summary. Please try again.</div>`;
   }
 }
 
@@ -592,7 +636,7 @@ async function sendChat() {
   const typingId = 'typing-' + Date.now();
   msgs.innerHTML += `
     <div class="chat-msg bot-msg" id="${typingId}">
-      <div class="msg-avatar">⬡</div>
+      <div class="msg-avatar">AI</div>
       <div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>
     </div>`;
   msgs.scrollTop = msgs.scrollHeight;
@@ -601,45 +645,45 @@ async function sendChat() {
   let response = '';
 
   try {
-    const { ticker, company } = await resolveStock(text);
+    const { ticker, company } = await resolveStockFromSentence(text);
 
     if (upper.includes('PRICE') || upper.includes('COST') || upper.includes('WORTH') || upper.includes('STOCK')) {
       const data = await apiFetch('/price', { ticker });
-      response = `📈 <strong>${company}</strong> is at <strong>$${data.current_price}</strong> — ${data.price_change_pct >= 0 ? '▲' : '▼'} ${Math.abs(data.price_change_pct).toFixed(2)}%<br><small style="color:var(--text-dim)">⚠ AI data — not financial advice</small>`;
+      response = `<strong>${company}</strong> is currently at <strong>$${data.current_price}</strong> — ${data.price_change_pct >= 0 ? '▲' : '▼'} ${Math.abs(data.price_change_pct).toFixed(2)}%<br><small style="color:var(--text-dim)">This is AI data — not financial advice</small>`;
     } else if (upper.includes('NEWS') || upper.includes('LATEST')) {
       const data = await apiFetch('/news', { company, ticker });
       const top = data.articles?.[0];
-      response = top ? `📰 Latest on <strong>${company}</strong>: "${top.title}"<br><small style="color:var(--text-dim)">⚠ Always verify news independently</small>` : `No news found for ${company}.`;
+      response = top ? `Latest on <strong>${company}</strong>: "${top.title}"<br><small style="color:var(--text-dim)">Always verify news independently</small>` : `No news found for ${company}.`;
     } else if (upper.includes('PREDICT') || upper.includes('FORECAST') || upper.includes('TOMORROW')) {
       const data = await apiFetch('/predict', { ticker });
       const day1 = data['7_day_predictions'][0];
       const p    = day1?.predicted_price;
       const displayPrice = typeof p === 'string' ? p : `$${Number(p).toFixed(2)}`;
-      response = `🔮 <strong>${company}</strong> tomorrow: <strong>${displayPrice}</strong> — ${data.trend || ''}<br><small style="color:var(--text-dim)">⚠ AI predictions are not 100% accurate. Not financial advice.</small>`;
+      response = `<strong>${company}</strong> tomorrow prediction: <strong>${displayPrice}</strong><br><small style="color:var(--text-dim)">AI predictions are not 100% accurate. Not financial advice.</small>`;
     } else if (upper.includes('BUY') || upper.includes('SELL') || upper.includes('HOLD') || upper.includes('ANALYS') || upper.includes('RECOMMEND') || upper.includes('INVEST')) {
       const data = await apiFetch('/analyze', { ticker, company });
-      response = `🧠 <strong>${company} — ${data.recommendation}</strong><br><small>${data.ai_analysis?.substring(0,200)}...</small><br><small style="color:var(--text-dim)">⚠ This is AI analysis only — not financial advice. The final decision is always yours.</small>`;
+      response = `<strong>${company} — ${data.recommendation}</strong><br><small>${data.ai_analysis?.substring(0,200)}...</small><br><small style="color:var(--text-dim)">This is AI analysis only — not financial advice. The final decision is always yours.</small>`;
     } else if (upper.includes('RSI') || upper.includes('MACD') || upper.includes('TECHNICAL')) {
       const data = await apiFetch('/technical', { ticker });
       const rsi  = data.RSI?.value ?? data.RSI ?? '—';
       const trend = data.MACD?.trend ?? data.MACD_signal ?? '—';
-      response = `📊 <strong>${company}</strong>: RSI=${rsi}, MACD: ${trend}<br><small style="color:var(--text-dim)">⚠ Technical indicators are tools, not guarantees</small>`;
+      response = `<strong>${company}</strong> — RSI: ${rsi}, MACD: ${trend}<br><small style="color:var(--text-dim)">Technical indicators are tools, not guarantees</small>`;
     } else if (upper.includes('HELLO') || upper.includes('HI') || upper.includes('HEY')) {
-      response = `👋 Hello! Type any company name like "Apple", "Nestle", "Samsung". I'll analyze it — but remember, I'm an AI and my analysis is not financial advice!`;
+      response = `Hello! Type any company name like Apple, Nestle, or Samsung. I will analyze it — but remember, I am an AI and my analysis is not financial advice.`;
     } else if (upper.includes('HELP')) {
-      response = `🤖 Try:<br>• "Apple price"<br>• "Analyze Tesla"<br>• "Nvidia prediction"<br>• "Latest Microsoft news"<br>• "Should I buy Google?"<br><br><small>⚠ All AI responses are informational only — not financial advice.</small>`;
+      response = `You can ask me:<br>• "Apple price"<br>• "Analyze Tesla"<br>• "Nvidia prediction"<br>• "Latest Microsoft news"<br>• "How is Nestle doing?"<br><br><small>All AI responses are informational only — not financial advice.</small>`;
     } else {
       const data = await apiFetch('/price', { ticker });
-      response = `💹 <strong>${company}</strong> — $${data.current_price} | H:$${data.high} | L:$${data.low} | Vol:${(data.volume/1e6).toFixed(1)}M<br><small style="color:var(--text-dim)">⚠ Not financial advice</small>`;
+      response = `<strong>${company}</strong> — $${data.current_price} | High: $${data.high} | Low: $${data.low} | Volume: ${(data.volume/1e6).toFixed(1)}M<br><small style="color:var(--text-dim)">Not financial advice</small>`;
     }
   } catch (err) {
-    response = `⚠ Sorry, I couldn't find that company. Try "Apple", "Tesla", "Google", or "Nestle".`;
+    response = `Sorry, I could not find that company. Try typing just the company name like "Nestle", "Apple", or "Samsung".`;
   }
 
   document.getElementById(typingId)?.remove();
   msgs.innerHTML += `
     <div class="chat-msg bot-msg fade-in">
-      <div class="msg-avatar">⬡</div>
+      <div class="msg-avatar">AI</div>
       <div class="msg-bubble">${response}</div>
     </div>`;
   msgs.scrollTop = msgs.scrollHeight;
