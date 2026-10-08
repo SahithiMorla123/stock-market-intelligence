@@ -29,7 +29,7 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 
 llm = ChatGroq(
     groq_api_key=GROQ_API_KEY,
-    model_name="llama-3.1-8b-instant",
+    model_name="openai/gpt-oss-120b",
     temperature=0
 )
 

@@ -15,7 +15,7 @@ A user types any company name — Apple, Samsung, Nestle, Reliance — and the s
 5. Calculates technical indicators — RSI, EMA, MACD
 6. Retrieves historical context from ChromaDB vector database using RAG
 7. Predicts next 7 days of stock prices using BiLSTM neural network
-8. Generates a BUY / HOLD / SELL recommendation using LLaMA 3.3 70B
+8. Generates a BUY / HOLD / SELL recommendation using GPT-OSS 120B
 9. Asks the user to make the final investment decision — Human-in-the-Loop
 
 ---
@@ -24,8 +24,8 @@ A user types any company name — Apple, Samsung, Nestle, Reliance — and the s
 
 | Layer | Technology | Purpose |
 |---|---|---|
-| Agentic AI | LangGraph + LLaMA 3.3 70B | Autonomous multi-tool reasoning and decision making |
-| Language Model | LLaMA 3.3 70B | Generates investment analysis and recommendations |
+| Agentic AI | LangGraph + GPT-OSS 120B | Autonomous multi-tool reasoning and decision making |
+| Language Model | GPT-OSS 120B | Generates investment analysis and recommendations |
 | Sentiment Analysis | FinBERT (ProsusAI/finbert) | Finance-specific BERT model for news sentiment |
 | Price Prediction | BiLSTM + Attention (PyTorch) | 7-day stock price forecasting |
 | RAG Pipeline | ChromaDB + Sentence Transformers | Vector storage and retrieval of historical stock and news data |
@@ -134,7 +134,7 @@ GROQ_API_KEY=your_groq_api_key
 NEWS_API_KEY=your_newsapi_key
 
 Get your free API keys here:
-- Groq API key — free at console.groq.com — used to run LLaMA 3.3 70B
+- Groq API key — free at console.groq.com — used to run GPT-OSS 120B
 - NewsAPI key — free at newsapi.org — used to fetch financial news
 
 Note: Each person who runs this project creates their own free API keys. Your keys are never shared — they stay private in your local .env file which is excluded from GitHub via .gitignore.
@@ -172,7 +172,7 @@ Open `frontend/index.html` with Live Server in VS Code.
 
 ## Known Limitations
 
-- Full AI analysis takes 30 to 60 seconds to respond because LLaMA 3.3 70B runs through 8 tool calls sequentially in the Agentic AI pipeline
+- Full AI analysis takes 30 to 60 seconds to respond because GPT-OSS 120B runs through 8 tool calls sequentially in the Agentic AI pipeline
 - The /predict endpoint takes 1 to 2 minutes because BiLSTM trains a fresh neural network on every request — a pre-trained cached model would improve this significantly
 - NewsAPI free tier does not always return company-specific articles — it may return general market news due to plan restrictions and limited search filtering
 - Candlestick chart currently uses simulated OHLC data — real historical OHLC data from the backend needs to be connected for accurate representation

@@ -841,7 +841,7 @@ elif st.session_state.page == "dashboard":
             st.warning("Add GROQ_API_KEY to your .env file.")
         else:
             with st.spinner(f"Analysing {company}..."):
-                llm = ChatGroq(groq_api_key=groq_key, model_name="llama-3.1-8b-instant", temperature=0)
+                llm = ChatGroq(groq_api_key=groq_key, model_name="openai/gpt-oss-120b" , temperature=0)
                 result = ai_recommend(company, ticker, df, news, period_lbl, llm)
 
             if "BUY"  in result.upper(): sig, sc = "▲  BUY",  "sig-buy"

@@ -39,13 +39,13 @@ app.add_middleware(
 # LLM
 llm = ChatGroq(
     groq_api_key=GROQ_API_KEY,
-    model_name="llama-3.3-70b-versatile",
+    model_name="openai/gpt-oss-120b",
     temperature=0
 )
 
 llm_fast = ChatGroq(
     groq_api_key=GROQ_API_KEY,
-    model_name="llama-3.1-8b-instant",
+    model_name="openai/gpt-oss-120b",
     temperature=0
 )
 
@@ -450,7 +450,7 @@ def full_analysis(request: AnalyzeRequest):
             "weekly_change_pct": safe_float(price_change_pct),
             "recommendation":    recommendation,
             "ai_analysis":       ai_analysis,
-            "powered_by":        "LLaMA 3.3 70B + RAG + FinBERT + BiLSTM"
+            "powered_by": "GPT-OSS 120B + RAG + FinBERT + BiLSTM"
         }
     except HTTPException:
         raise
@@ -469,7 +469,7 @@ def chat(request: ChatRequest):
         })
         return {
             "response":   response['messages'][-1].content,
-            "powered_by": "LLaMA 3.3 70B Agentic AI + RAG + FinBERT + BiLSTM"
+            "powered_by": "GPT-OSS 120B Agentic AI + RAG + FinBERT + BiLSTM"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
