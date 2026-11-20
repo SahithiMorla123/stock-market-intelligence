@@ -1,4 +1,4 @@
-const API_BASE = window.location.origin;
+const API_BASE = window.__API_BASE__ || window.location.origin;
 const searchCache = {};
 async function resolveStock(input) {
   const cleaned = input.trim();
@@ -188,7 +188,7 @@ function initParticles() {
 function enterExperience() {
   document.body.style.transition = 'opacity 0.6s ease';
   document.body.style.opacity = '0';
-  setTimeout(() => { window.location.href = '/static/dashboard.html'; }, 600);
+  setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
 }
 
 // ── 3D TILT ───────────────────────────────────────────────────────────────
@@ -220,13 +220,40 @@ async function apiFetch(endpoint, body) {
   return res.json();
 }
 
+let _loadingTimer = null;
+
+// First-time analysis for a ticker trains a fresh BiLSTM model and runs the
+// full multi-tool AI agent, which can take up to ~90s. Without this, the
+// plain spinner looks identical whether it's working or stuck.
+const LOADING_STAGES = [
+  { afterSeconds: 0,  text: 'Fetching live price & market data...' },
+  { afterSeconds: 6,  text: 'Running technical & sentiment analysis...' },
+  { afterSeconds: 14, text: 'Training the price prediction model for this ticker...' },
+  { afterSeconds: 28, text: 'Running full AI analysis — first-time runs can take up to a minute.' },
+  { afterSeconds: 50, text: 'Still working — almost there...' },
+];
+
 function showLoading() {
   const el = document.getElementById('loadingOverlay');
-  if (el) el.classList.add('active');
+  const sub = document.getElementById('loaderSubtext');
+  if (!el) return;
+  el.classList.add('active');
+
+  const startedAt = Date.now();
+  if (_loadingTimer) clearInterval(_loadingTimer);
+  const update = () => {
+    if (!sub) return;
+    const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
+    const stage = [...LOADING_STAGES].reverse().find(s => elapsedSeconds >= s.afterSeconds);
+    sub.textContent = stage ? `${stage.text} (${elapsedSeconds}s)` : '';
+  };
+  update();
+  _loadingTimer = setInterval(update, 1000);
 }
 function hideLoading() {
   const el = document.getElementById('loadingOverlay');
   if (el) el.classList.remove('active');
+  if (_loadingTimer) { clearInterval(_loadingTimer); _loadingTimer = null; }
 }
 
 // ── CANDLESTICK CHART ─────────────────────────────────────────────────────

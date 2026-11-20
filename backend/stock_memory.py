@@ -1,19 +1,14 @@
-import chromadb
 import pandas as pd
-from sentence_transformers import SentenceTransformer
-from stock_brain import calculate_technical_indicators, analyze_news_sentiment
+from stock_brain import (
+    calculate_technical_indicators,
+    analyze_news_sentiment,
+    get_embedder,
+    stock_collection,
+    news_collection,
+)
 
-# Initialize ChromaDB with persistent storage
-client = chromadb.PersistentClient(path="./chroma_db")
-
-# Collections
-stock_collection = client.get_or_create_collection(name="stock_data")
-news_collection  = client.get_or_create_collection(name="news_data")
-
-# Finance-aware embeddings
-print("Loading finance embeddings model...")
-embedder = SentenceTransformer('ProsusAI/finbert')
-print("Embeddings model loaded!")
+# Reuses stock_brain's single ChromaDB client/collections and lazy FinBERT
+# embedder instead of opening a second copy of each.
 
 
 def store_stock_data():
@@ -43,7 +38,7 @@ def store_stock_data():
                 "close":   float(row['Close']),
                 "volume":  float(row['Volume'])
             })
-            embeddings.append(embedder.encode(doc).tolist())
+            embeddings.append(get_embedder().encode(doc).tolist())
 
         stock_collection.add(
             documents=documents,
@@ -58,8 +53,9 @@ def auto_fetch_and_store(ticker: str, company: str):
     """Auto-fetch and store company data in ChromaDB if not already stored"""
     try:
         existing = stock_collection.query(
-            query_texts=[f"{ticker} stock data"],
-            n_results=1
+            query_embeddings=[get_embedder().encode(f"{ticker} stock data").tolist()],
+            n_results=1,
+            where={"company": ticker},
         )
         if existing['documents'][0]:
             return  # Already stored
@@ -98,7 +94,7 @@ def store_news_with_sentiment(company: str, ticker: str, news_list: list):
 
     for i, news in enumerate(news_list):
         try:
-            embedding = embedder.encode(news).tolist()
+            embedding = get_embedder().encode(news).tolist()
             news_collection.add(
                 documents=[news],
                 ids=[f"news_{company}_{today}_{i}"],
@@ -132,8 +128,12 @@ def classify_query(query: str) -> str:
         return "general"
 
 
-def query_stock_memory(company: str, query: str, ticker: str = "") -> str:
-    """Smart RAG query — auto-fetches company data if not in ChromaDB"""
+def query_stock_memory(ticker: str, company: str, query: str) -> str:
+    """Smart RAG query — auto-fetches company data if not in ChromaDB.
+
+    Parameter order matches main.py's search_stock_memory tool, which calls
+    this positionally as (ticker, company, query).
+    """
 
     # Auto-fetch and store if company not in ChromaDB
     if ticker:
@@ -141,12 +141,15 @@ def query_stock_memory(company: str, query: str, ticker: str = "") -> str:
 
     query_type   = classify_query(query)
     search_query = f"{company} {query}"
+    search_embedding = get_embedder().encode(search_query).tolist()
 
-    # Query stock history
+    # Query stock history (scoped to this ticker, when known, so results
+    # aren't just the nearest semantic match from a different company)
     try:
         stock_results = stock_collection.query(
-            query_texts=[search_query],
-            n_results=5
+            query_embeddings=[search_embedding],
+            n_results=5,
+            where={"company": ticker} if ticker else None,
         )
         stock_docs = stock_results['documents'][0] if stock_results['documents'][0] else []
     except:
@@ -155,8 +158,9 @@ def query_stock_memory(company: str, query: str, ticker: str = "") -> str:
     # Query news history
     try:
         news_results = news_collection.query(
-            query_texts=[search_query],
-            n_results=3
+            query_embeddings=[search_embedding],
+            n_results=3,
+            where={"ticker": ticker} if ticker else None,
         )
         news_docs = news_results['documents'][0] if news_results['documents'][0] else []
         news_meta = news_results['metadatas'][0] if news_results['metadatas'][0] else []
@@ -191,5 +195,5 @@ if __name__ == "__main__":
     print("Initializing Stock Memory with RAG...")
     store_stock_data()
     print("\nTesting smart query...")
-    result = query_stock_memory("Apple", "How was Apple performing in 2023?", "AAPL")
+    result = query_stock_memory("AAPL", "Apple", "How was Apple performing in 2023?")
     print(result)

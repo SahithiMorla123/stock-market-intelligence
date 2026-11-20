@@ -40,25 +40,39 @@ A user types any company name — Apple, Samsung, Nestle, Reliance — and the s
 ---
 
 ## Project Structure
+
+The app is split into two independently deployable pieces — see
+[DEPLOYMENT.md](DEPLOYMENT.md) for how to ship each one for free.
+
+```
 stock-market-intelligence/
 │
-├── main.py              — FastAPI server + LangGraph Agentic AI (root entry point)
-├── stock_brain.py       — FinBERT sentiment analysis + RSI, EMA, MACD indicators
-├── stock_memory.py      — ChromaDB RAG queries and vector storage
-├── future_vision.py     — BiLSTM + Attention neural network for price prediction
-├── api.py               — REST API endpoint definitions
+├── backend/                  — FastAPI service (deploy to Hugging Face Spaces)
+│   ├── main.py                — FastAPI server + LangGraph Agentic AI
+│   ├── stock_brain.py          — FinBERT sentiment + RSI/EMA/MACD indicators
+│   ├── stock_memory.py         — ChromaDB RAG queries and vector storage
+│   ├── future_vision.py        — BiLSTM + Attention price prediction
+│   ├── cache_utils.py          — disk cache so heavy models run once, not per-request
+│   ├── test_api.py             — pytest test cases
+│   ├── chroma_db/              — ChromaDB vector store (gitignored, rebuilds lazily)
+│   ├── .cache/                 — cached model outputs (gitignored, rebuilds lazily)
+│   ├── Dockerfile / .dockerignore
+│   ├── requirements.txt        — production deps only
+│   └── requirements-dev.txt    — + pytest/httpx for local testing
 │
-├── frontend/
-│   ├── index.html       — Landing page with Apple-style floating animations
-│   ├── dashboard.html   — Main dashboard with stock cards and AI chatbot
-│   ├── style.css        — Glassmorphism design with 3D hover effects and floating labels
-│   └── script.js        — Real-time API calls, candlestick charts and animations
+├── frontend/                 — static site (deploy to Vercel/Netlify)
+│   ├── index.html              — landing page
+│   ├── dashboard.html          — main dashboard with stock cards and AI chatbot
+│   ├── config.js               — points the UI at your deployed backend URL
+│   ├── style.css
+│   └── script.js
 │
-├── test_api.py          — 15 automated pytest test cases
-├── chroma_db/           — ChromaDB persistent vector database
-├── .env                 — Environment variables (API keys) — not pushed to GitHub
-├── .gitignore           — Git ignore rules
-└── requirements.txt     — Python package dependencies
+├── api.py, app.py, dashboard.py, data_cleaner.py, ... — earlier/alternate
+│   implementations (Streamlit dashboard, old API draft) kept for reference,
+│   not part of the deployed app
+├── .gitignore
+└── DEPLOYMENT.md             — step-by-step free deployment guide
+```
 
 ---
 
@@ -85,6 +99,8 @@ stock-market-intelligence/
 15 test cases covering all endpoints:
 
 ```bash
+cd backend
+pip install -r requirements-dev.txt
 pytest test_api.py -v
 ```
 
@@ -121,15 +137,16 @@ git clone https://github.com/SahithiMorla123/stock-market-intelligence.git
 cd stock-market-intelligence
 ```
 
-### 2. Install dependencies
+### 2. Install backend dependencies
 
 ```bash
+cd backend
 pip install -r requirements.txt
 ```
 
 ### 3. Set up environment variables
 
-Create a `.env` file in the root folder with your own API keys:
+Create a `backend/.env` file with your own API keys:
 GROQ_API_KEY=your_groq_api_key
 NEWS_API_KEY=your_newsapi_key
 
@@ -137,11 +154,12 @@ Get your free API keys here:
 - Groq API key — free at console.groq.com — used to run GPT-OSS 120B
 - NewsAPI key — free at newsapi.org — used to fetch financial news
 
-Note: Each person who runs this project creates their own free API keys. Your keys are never shared — they stay private in your local .env file which is excluded from GitHub via .gitignore.
+Note: Each person who runs this project creates their own free API keys. Your keys are never shared — they stay private in your local `.env` file which is excluded from GitHub via .gitignore.
 
 ### 4. Start the backend
 
 ```bash
+cd backend
 python main.py
 ```
 
@@ -149,12 +167,22 @@ Wait until you see: Application startup complete
 
 ### 5. Start the frontend
 
-Open `frontend/index.html` with Live Server in VS Code.
+The frontend now calls the backend over HTTP (not served by FastAPI anymore),
+so run it from its own folder, e.g.:
+
+```bash
+cd frontend
+python -m http.server 5500
+```
+
+`frontend/config.js` already points `localhost` at `http://localhost:8000`.
 
 ### 6. Access the application
 
-- Frontend: http://127.0.0.1:5500/frontend/index.html
+- Frontend: http://localhost:5500/index.html
 - API Documentation: http://localhost:8000/docs
+
+For free production deployment of both pieces, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ---
 
@@ -173,7 +201,7 @@ Open `frontend/index.html` with Live Server in VS Code.
 ## Known Limitations
 
 - Full AI analysis takes 30 to 60 seconds to respond because GPT-OSS 120B runs through 8 tool calls sequentially in the Agentic AI pipeline
-- The /predict endpoint takes 1 to 2 minutes because BiLSTM trains a fresh neural network on every request — a pre-trained cached model would improve this significantly
+- The /predict endpoint takes 1 to 2 minutes the first time it's asked about a given ticker, because BiLSTM trains a fresh neural network. The result is now cached on disk for 6 hours (see `backend/cache_utils.py`), so repeat requests for the same ticker return instantly instead of retraining
 - NewsAPI free tier does not always return company-specific articles — it may return general market news due to plan restrictions and limited search filtering
 - Candlestick chart currently uses simulated OHLC data — real historical OHLC data from the backend needs to be connected for accurate representation
 - ChromaDB RAG shows no historical context for companies not yet stored in the vector database — only the 5 initial companies have pre-stored data

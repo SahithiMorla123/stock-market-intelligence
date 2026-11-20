@@ -1,5 +1,23 @@
-.env
+# Environments
 .venv
-__pycache__
-*.pyc.idea/
+backend/.env
+.env
+.env.*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# IDE
 .idea/
+
+# Regenerable backend data (rebuilt lazily on first use, see backend/cache_utils.py)
+backend/.cache/
+backend/chroma_db/
+
+# OS
+.DS_Store
+Thumbs.db

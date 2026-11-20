@@ -1,19 +1,45 @@
+import os
 import chromadb
 import pandas as pd
 import yfinance as yf
 from datetime import date
-from sentence_transformers import SentenceTransformer
 
-# Initialize ChromaDB
-client = chromadb.PersistentClient(path="./chroma_db")
+from cache_utils import cached
+
+# ChromaDB is cheap to open (just a local sqlite index) so it stays eager.
+# The heavy transformer models below are loaded lazily, once, on first use.
+CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", "./chroma_db")
+client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
 stock_collection = client.get_or_create_collection(name="stock_data")
 news_collection = client.get_or_create_collection(name="news_data")
 
-# FinBERT embeddings
-print("Loading finance embeddings model...")
-embedder = SentenceTransformer('ProsusAI/finbert')
-print("Embeddings model loaded!")
+_embedder = None
+_sentiment_model = None
 
+
+def get_embedder():
+    """Lazily load the FinBERT sentence embedder once, on first actual use."""
+    global _embedder
+    if _embedder is None:
+        from sentence_transformers import SentenceTransformer
+        print("Loading finance embeddings model (first use)...")
+        _embedder = SentenceTransformer('ProsusAI/finbert')
+        print("Embeddings model loaded!")
+    return _embedder
+
+
+def get_sentiment_model():
+    """Lazily load the FinBERT sentiment pipeline once, on first actual use."""
+    global _sentiment_model
+    if _sentiment_model is None:
+        from transformers import pipeline
+        print("Loading FinBERT sentiment model (first use)...")
+        _sentiment_model = pipeline("sentiment-analysis", model="ProsusAI/finbert")
+        print("Sentiment model loaded!")
+    return _sentiment_model
+
+
+@cached(ttl_seconds=900)  # 15 min — also cuts down on yfinance rate-limit hits
 def calculate_technical_indicators(ticker: str) -> dict:
     stock = yf.Ticker(ticker)
     df = stock.history(period="6mo")
@@ -44,11 +70,11 @@ def calculate_technical_indicators(ticker: str) -> dict:
         "MACD_signal": macd_signal
     }
 
+@cached(ttl_seconds=3600)  # 1 hour — same news batch won't be re-scored
 def analyze_news_sentiment(news_list: list) -> dict:
-    from transformers import pipeline
-    sentiment_model = pipeline("sentiment-analysis", model="ProsusAI/finbert")
     if not news_list:
         return {"overall_sentiment": "neutral", "positive_count": 0, "negative_count": 0, "neutral_count": 0}
+    sentiment_model = get_sentiment_model()
     results = []
     for news in news_list:
         result = sentiment_model(news[:512])
@@ -108,7 +134,7 @@ def fetch_and_store_company(ticker: str, company: str):
             "MACD": macd,
             "stored_date": today
         })
-        embeddings.append(embedder.encode(doc).tolist())
+        embeddings.append(get_embedder().encode(doc).tolist())
     batch_size = 100
     for i in range(0, len(documents), batch_size):
         try:
@@ -120,12 +146,12 @@ def fetch_and_store_company(ticker: str, company: str):
             )
         except:
             pass
-    print(f"✅ {company} data stored in ChromaDB!")
+    print(f"{company} data stored in ChromaDB!")
     return True
 
 def store_initial_stock_data():
     if stock_collection.count() > 0:
-        print(f"✅ Stock data already stored! ({stock_collection.count()} records)")
+        print(f"Stock data already stored! ({stock_collection.count()} records)")
         return
     print("Loading initial stock data...")
     df = pd.read_csv("clean_stocks_data.csv")
@@ -147,7 +173,7 @@ def store_initial_stock_data():
                 "MACD": "unknown",
                 "stored_date": str(date.today())
             })
-            embeddings.append(embedder.encode(doc).tolist())
+            embeddings.append(get_embedder().encode(doc).tolist())
         try:
             stock_collection.add(
                 documents=documents,
@@ -157,7 +183,7 @@ def store_initial_stock_data():
             )
         except:
             pass
-    print("✅ Initial stock data stored!")
+    print("Initial stock data stored!")
 
 def store_news_with_context(company: str, ticker: str, news_list: list):
     if not news_list:
@@ -174,7 +200,7 @@ def store_news_with_context(company: str, ticker: str, news_list: list):
     today = str(date.today())
     for i, news in enumerate(news_list):
         try:
-            embedding = embedder.encode(news).tolist()
+            embedding = get_embedder().encode(news).tolist()
             news_collection.add(
                 documents=[news],
                 ids=[f"news_{ticker}_{today}_{i}"],

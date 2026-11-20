@@ -10,3 +10,6 @@ __pycache__
 *.pyd
 .env.*
 *.log
+.cache
+chroma_db
+test_api.py

@@ -6,6 +6,7 @@
   <title>StockVision AI — Dashboard</title>
   <link rel="stylesheet" href="style.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet"/>
+  <script src="config.js"></script>
 </head>
 <body class="dashboard-body">
 
@@ -138,7 +139,8 @@
 
   <div class="loading-overlay" id="loadingOverlay">
     <div class="loader-ring"></div>
-    <div class="loader-text">Analyzing...</div>
+    <div class="loader-text" id="loaderText">Analyzing...</div>
+    <div class="loader-subtext" id="loaderSubtext"></div>
   </div>
 
   <script src="script.js"></script>

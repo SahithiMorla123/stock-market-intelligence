@@ -5,6 +5,8 @@ from sklearn.preprocessing import MinMaxScaler
 import torch
 import torch.nn as nn
 
+from cache_utils import cached
+
 
 # BiLSTM + Attention Model
 class Attention(nn.Module):
@@ -103,6 +105,7 @@ def train_model(ticker: str) -> tuple:
     return model, scaler
 
 
+@cached(ttl_seconds=6 * 3600)  # 6 hours — avoids retraining BiLSTM on every request
 def predict_future(ticker: str, days: int = 7) -> dict:
     """Predict future stock prices using BiLSTM + Attention"""
     df = get_stock_data(ticker)
