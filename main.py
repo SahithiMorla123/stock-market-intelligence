@@ -4,6 +4,8 @@ import requests
 import numpy as np
 import yfinance as yf
 from dotenv import load_dotenv
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -28,7 +30,7 @@ app = FastAPI(
     description="AI-powered stock analysis using LLaMA 3.3, RAG, BiLSTM and real-time data",
     version="2.0.0"
 )
-
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -293,12 +295,7 @@ def fetch_news(company: str, ticker: str = "", page_size: int = 5):
 
 @app.get("/")
 def root():
-    return {
-        "message":   "StockVision AI API",
-        "version":   "2.0.0",
-        "endpoints": ["/price", "/news", "/sentiment", "/technical",
-                      "/predict", "/analyze", "/chat", "/search"]
-    }
+    return FileResponse("frontend/index.html")
 
 @app.get("/search")
 def search_company(q: str):

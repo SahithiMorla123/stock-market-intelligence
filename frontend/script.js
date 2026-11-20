@@ -1,7 +1,5 @@
-const API_BASE = 'http://localhost:8000';
+const API_BASE = window.location.origin;
 const searchCache = {};
-
-// ── RESOLVE ANY COMPANY NAME TO TICKER ───────────────────────────────────
 async function resolveStock(input) {
   const cleaned = input.trim();
   const key = cleaned.toLowerCase();
@@ -190,7 +188,7 @@ function initParticles() {
 function enterExperience() {
   document.body.style.transition = 'opacity 0.6s ease';
   document.body.style.opacity = '0';
-  setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
+  setTimeout(() => { window.location.href = '/static/dashboard.html'; }, 600);
 }
 
 // ── 3D TILT ───────────────────────────────────────────────────────────────
